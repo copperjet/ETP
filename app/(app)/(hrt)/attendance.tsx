@@ -57,8 +57,8 @@ function useAttendanceRegister(staffId: string | null, schoolId: string) {
       const { data: assignment } = await supabase
         .from('hrt_assignments')
         .select('stream_id, semester_id')
-        .eq('staff_id', staffId!)
         .eq('school_id', schoolId)
+        .or(`staff_id.eq.${staffId},co_hrt_staff_id.eq.${staffId}`)
         .limit(1)
         .single();
 

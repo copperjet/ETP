@@ -62,7 +62,7 @@ function useStudentMarks(studentId: string, schoolId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('marks')
-        .select('assessment_type, value, is_na, subjects ( name ), semesters ( name )')
+        .select('assessment_type, value, is_excused, subjects ( name ), semesters ( name )')
         .eq('student_id', studentId)
         .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
@@ -300,7 +300,7 @@ function MarksTab({ query, colors }: { query: any; colors: any }) {
           {items.map((m: any, i: number) => (
             <View key={i} style={[styles.infoRow, i < items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <ThemedText variant="bodySm" color="muted">{(m.assessment_type ?? '').toUpperCase()}</ThemedText>
-              {m.is_na ? (
+              {m.is_excused ? (
                 <Badge label="N/A" preset="warning" />
               ) : (
                 <ThemedText variant="bodySm" style={{ fontWeight: '700' }}>{m.value ?? '—'}</ThemedText>

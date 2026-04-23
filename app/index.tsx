@@ -22,9 +22,14 @@ export default function Index() {
       return <Redirect href="/(app)/(st)/home" />;
     case 'admin':
     case 'super_admin':
+    case 'principal':
+    case 'coordinator':
+    case 'hod':
       return <Redirect href="/(app)/(admin)/home" />;
     case 'finance':
       return <Redirect href="/(app)/(finance)/home" />;
+    case 'front_desk':
+      return <Redirect href="/(app)/(frontdesk)/home" />;
     case 'parent':
       return <Redirect href="/(app)/(parent)/home" />;
     default:

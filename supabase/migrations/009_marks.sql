@@ -2,7 +2,7 @@
 -- 009_marks.sql
 -- ============================================================
 
-CREATE TABLE marks (
+CREATE TABLE IF NOT EXISTS marks (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id               UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id              UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -22,7 +22,7 @@ CREATE TABLE marks (
   UNIQUE (student_id, subject_id, semester_id, assessment_type)
 );
 
-CREATE TABLE mark_audit_logs (
+CREATE TABLE IF NOT EXISTS mark_audit_logs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   mark_id     UUID NOT NULL REFERENCES marks(id),
@@ -35,7 +35,7 @@ CREATE TABLE mark_audit_logs (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE mark_notes (
+CREATE TABLE IF NOT EXISTS mark_notes (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   mark_id     UUID NOT NULL REFERENCES marks(id),
@@ -45,7 +45,7 @@ CREATE TABLE mark_notes (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE biweekly_records (
+CREATE TABLE IF NOT EXISTS biweekly_records (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -137,13 +137,14 @@ ALTER TABLE mark_notes      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE biweekly_records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "si_marks"           ON marks           FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_mark_audit_logs" ON mark_audit_logs;
 CREATE POLICY "si_mark_audit_logs" ON mark_audit_logs FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_mark_notes"      ON mark_notes      FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_biweekly"        ON biweekly_records FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_marks_student   ON marks(student_id);
-CREATE INDEX idx_marks_subject   ON marks(subject_id);
-CREATE INDEX idx_marks_stream    ON marks(stream_id, semester_id);
-CREATE INDEX idx_marks_semester  ON marks(semester_id);
-CREATE INDEX idx_mal_mark        ON mark_audit_logs(mark_id);
-CREATE INDEX idx_mal_student     ON mark_audit_logs(student_id);
+CREATE INDEX IF NOT EXISTS idx_marks_student   ON marks(student_id);
+CREATE INDEX IF NOT EXISTS idx_marks_subject   ON marks(subject_id);
+CREATE INDEX IF NOT EXISTS idx_marks_stream    ON marks(stream_id, semester_id);
+CREATE INDEX IF NOT EXISTS idx_marks_semester  ON marks(semester_id);
+CREATE INDEX IF NOT EXISTS idx_mal_mark        ON mark_audit_logs(mark_id);
+CREATE INDEX IF NOT EXISTS idx_mal_student     ON mark_audit_logs(student_id);

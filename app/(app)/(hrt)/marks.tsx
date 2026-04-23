@@ -92,13 +92,24 @@ function useMarksData(staffId: string | null, schoolId: string, selectedAssignme
 
 function useAssignments(staffId: string | null, schoolId: string) {
   return useQuery({
-    queryKey: ['st-assignments', staffId, schoolId],
+    queryKey: ['hrt-marks-assignments', staffId, schoolId],
     enabled: !!staffId && !!schoolId,
     queryFn: async () => {
+      const { data: hrtAssignment } = await supabase
+        .from('hrt_assignments')
+        .select('stream_id, semester_id')
+        .eq('staff_id', staffId!)
+        .eq('school_id', schoolId)
+        .limit(1)
+        .single();
+      if (!hrtAssignment) return [] as Assignment[];
+      const { stream_id, semester_id } = hrtAssignment as any;
+
       const { data } = await supabase
         .from('subject_teacher_assignments')
         .select('subject_id, stream_id, semester_id, subjects(name), streams(name, grades(name))')
-        .eq('staff_id', staffId!)
+        .eq('stream_id', stream_id)
+        .eq('semester_id', semester_id)
         .eq('school_id', schoolId);
       return (data ?? []) as unknown as Assignment[];
     },

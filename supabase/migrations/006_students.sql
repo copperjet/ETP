@@ -2,7 +2,7 @@
 -- 006_students.sql
 -- ============================================================
 
-CREATE TABLE students (
+CREATE TABLE IF NOT EXISTS students (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_number  TEXT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE students (
   UNIQUE (school_id, student_number)
 );
 
-CREATE TABLE student_year_records (
+CREATE TABLE IF NOT EXISTS student_year_records (
   id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id                UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -40,7 +40,7 @@ CREATE TABLE student_year_records (
   UNIQUE (student_id, semester_id)
 );
 
-CREATE TABLE emergency_contacts (
+CREATE TABLE IF NOT EXISTS emergency_contacts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id      UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE UNIQUE,
@@ -51,7 +51,7 @@ CREATE TABLE emergency_contacts (
   medical_alert   TEXT
 );
 
-CREATE TABLE student_parent_links (
+CREATE TABLE IF NOT EXISTS student_parent_links (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id  UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -59,7 +59,7 @@ CREATE TABLE student_parent_links (
   UNIQUE (student_id, parent_id)
 );
 
-CREATE TABLE subject_enrollments (
+CREATE TABLE IF NOT EXISTS subject_enrollments (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id  UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -79,6 +79,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_student_number ON students;
 CREATE TRIGGER trg_student_number BEFORE INSERT ON students
 FOR EACH ROW WHEN (NEW.student_number IS NULL) EXECUTE FUNCTION generate_student_number();
 
@@ -90,22 +91,24 @@ ALTER TABLE student_parent_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subject_enrollments  ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "si_students"             ON students             FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_student_year_records" ON student_year_records;
 CREATE POLICY "si_student_year_records" ON student_year_records FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_emergency_contacts"   ON emergency_contacts   FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_student_parent_links" ON student_parent_links;
 CREATE POLICY "si_student_parent_links" ON student_parent_links FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_subject_enrollments"  ON subject_enrollments  FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_students_school  ON students(school_id);
-CREATE INDEX idx_students_stream  ON students(stream_id);
-CREATE INDEX idx_students_grade   ON students(grade_id);
-CREATE INDEX idx_students_status  ON students(status);
-CREATE INDEX idx_syr_student      ON student_year_records(student_id);
-CREATE INDEX idx_syr_semester     ON student_year_records(semester_id);
-CREATE INDEX idx_spl_student      ON student_parent_links(student_id);
-CREATE INDEX idx_spl_parent       ON student_parent_links(parent_id);
-CREATE INDEX idx_se_student       ON subject_enrollments(student_id);
-CREATE INDEX idx_se_semester      ON subject_enrollments(semester_id);
+CREATE INDEX IF NOT EXISTS idx_students_school  ON students(school_id);
+CREATE INDEX IF NOT EXISTS idx_students_stream  ON students(stream_id);
+CREATE INDEX IF NOT EXISTS idx_students_grade   ON students(grade_id);
+CREATE INDEX IF NOT EXISTS idx_students_status  ON students(status);
+CREATE INDEX IF NOT EXISTS idx_syr_student      ON student_year_records(student_id);
+CREATE INDEX IF NOT EXISTS idx_syr_semester     ON student_year_records(semester_id);
+CREATE INDEX IF NOT EXISTS idx_spl_student      ON student_parent_links(student_id);
+CREATE INDEX IF NOT EXISTS idx_spl_parent       ON student_parent_links(parent_id);
+CREATE INDEX IF NOT EXISTS idx_se_student       ON subject_enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_se_semester      ON subject_enrollments(semester_id);
 
 -- Full-text search index
-CREATE INDEX idx_students_fts ON students
+CREATE INDEX IF NOT EXISTS idx_students_fts ON students
   USING gin(to_tsvector('english', full_name || ' ' || student_number));

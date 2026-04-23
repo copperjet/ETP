@@ -2,7 +2,7 @@
 -- 010_character.sql — CREED character assessments
 -- ============================================================
 
-CREATE TABLE character_records (
+CREATE TABLE IF NOT EXISTS character_records (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -22,8 +22,9 @@ CREATE TABLE character_records (
 
 -- ── RLS ───────────────────────────────────────────────────────
 ALTER TABLE character_records ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "si_character_records" ON character_records;
 CREATE POLICY "si_character_records" ON character_records FOR ALL TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_cr_student   ON character_records(student_id);
-CREATE INDEX idx_cr_semester  ON character_records(semester_id);
+CREATE INDEX IF NOT EXISTS idx_cr_student   ON character_records(student_id);
+CREATE INDEX IF NOT EXISTS idx_cr_semester  ON character_records(semester_id);

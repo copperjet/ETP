@@ -2,7 +2,7 @@
 -- 008_attendance.sql
 -- ============================================================
 
-CREATE TABLE attendance_records (
+CREATE TABLE IF NOT EXISTS attendance_records (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id      UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -19,7 +19,7 @@ CREATE TABLE attendance_records (
   UNIQUE (student_id, date)
 );
 
-CREATE TABLE excused_absence_requests (
+CREATE TABLE IF NOT EXISTS excused_absence_requests (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   attendance_record_id UUID NOT NULL REFERENCES attendance_records(id) ON DELETE CASCADE UNIQUE,
@@ -96,13 +96,15 @@ $$;
 ALTER TABLE attendance_records      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE excused_absence_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "si_attendance" ON attendance_records;
 CREATE POLICY "si_attendance" ON attendance_records FOR ALL TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_excused" ON excused_absence_requests;
 CREATE POLICY "si_excused" ON excused_absence_requests FOR ALL TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_att_student   ON attendance_records(student_id);
-CREATE INDEX idx_att_stream    ON attendance_records(stream_id);
-CREATE INDEX idx_att_semester  ON attendance_records(semester_id);
-CREATE INDEX idx_att_date      ON attendance_records(date);
-CREATE INDEX idx_att_school    ON attendance_records(school_id);
+CREATE INDEX IF NOT EXISTS idx_att_student   ON attendance_records(student_id);
+CREATE INDEX IF NOT EXISTS idx_att_stream    ON attendance_records(stream_id);
+CREATE INDEX IF NOT EXISTS idx_att_semester  ON attendance_records(semester_id);
+CREATE INDEX IF NOT EXISTS idx_att_date      ON attendance_records(date);
+CREATE INDEX IF NOT EXISTS idx_att_school    ON attendance_records(school_id);

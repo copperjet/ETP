@@ -2,7 +2,7 @@
 -- 003_academic_year.sql
 -- ============================================================
 
-CREATE TABLE academic_years (
+CREATE TABLE IF NOT EXISTS academic_years (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id  UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE academic_years (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE semesters (
+CREATE TABLE IF NOT EXISTS semesters (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   academic_year_id  UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
@@ -26,7 +26,7 @@ CREATE TABLE semesters (
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE calendar_events (
+CREATE TABLE IF NOT EXISTS calendar_events (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id        UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
@@ -42,11 +42,11 @@ CREATE TABLE calendar_events (
 );
 
 -- Only one active academic year per school
-CREATE UNIQUE INDEX idx_one_active_year
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_year
   ON academic_years(school_id) WHERE is_active = true;
 
 -- Only one active semester per school
-CREATE UNIQUE INDEX idx_one_active_semester
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_semester
   ON semesters(school_id) WHERE is_active = true;
 
 -- Helper: get active semester for current school
@@ -70,9 +70,10 @@ ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "si_academic_years"  ON academic_years  FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_semesters"       ON semesters       FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_calendar_events" ON calendar_events;
 CREATE POLICY "si_calendar_events" ON calendar_events FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_years_school    ON academic_years(school_id);
-CREATE INDEX idx_semesters_year  ON semesters(academic_year_id);
-CREATE INDEX idx_events_school   ON calendar_events(school_id);
-CREATE INDEX idx_events_dates    ON calendar_events(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_years_school    ON academic_years(school_id);
+CREATE INDEX IF NOT EXISTS idx_semesters_year  ON semesters(academic_year_id);
+CREATE INDEX IF NOT EXISTS idx_events_school   ON calendar_events(school_id);
+CREATE INDEX IF NOT EXISTS idx_events_dates    ON calendar_events(start_date, end_date);

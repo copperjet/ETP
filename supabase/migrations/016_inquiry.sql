@@ -2,7 +2,7 @@
 -- 016_inquiry.sql — Front desk inquiries
 -- ============================================================
 
-CREATE TABLE inquiries (
+CREATE TABLE IF NOT EXISTS inquiries (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id            UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name                 TEXT NOT NULL,
@@ -21,9 +21,10 @@ CREATE TABLE inquiries (
 
 -- ── RLS ───────────────────────────────────────────────────────
 ALTER TABLE inquiries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "si_inquiries" ON inquiries;
 CREATE POLICY "si_inquiries" ON inquiries FOR ALL TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_inq_school  ON inquiries(school_id);
-CREATE INDEX idx_inq_status  ON inquiries(status);
-CREATE INDEX idx_inq_date    ON inquiries(date DESC);
+CREATE INDEX IF NOT EXISTS idx_inq_school  ON inquiries(school_id);
+CREATE INDEX IF NOT EXISTS idx_inq_status  ON inquiries(status);
+CREATE INDEX IF NOT EXISTS idx_inq_date    ON inquiries(date DESC);

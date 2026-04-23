@@ -2,7 +2,7 @@
 -- 015_audit.sql — Immutable audit trail
 -- ============================================================
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   event_type  TEXT NOT NULL CHECK (event_type IN (
@@ -24,9 +24,11 @@ CREATE TABLE audit_logs (
 -- ── RLS — INSERT only, no UPDATE/DELETE ───────────────────────
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "audit_insert" ON audit_logs;
 CREATE POLICY "audit_insert" ON audit_logs FOR INSERT TO authenticated
   WITH CHECK (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
+DROP POLICY IF EXISTS "audit_read" ON audit_logs;
 CREATE POLICY "audit_read" ON audit_logs FOR SELECT TO authenticated
   USING (
     school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid
@@ -38,8 +40,8 @@ CREATE POLICY "audit_read" ON audit_logs FOR SELECT TO authenticated
 
 -- No UPDATE or DELETE policies → audit logs are immutable
 
-CREATE INDEX idx_audit_school    ON audit_logs(school_id);
-CREATE INDEX idx_audit_event     ON audit_logs(event_type);
-CREATE INDEX idx_audit_actor     ON audit_logs(actor_id);
-CREATE INDEX idx_audit_student   ON audit_logs(student_id);
-CREATE INDEX idx_audit_created   ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_school    ON audit_logs(school_id);
+CREATE INDEX IF NOT EXISTS idx_audit_event     ON audit_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_actor     ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_student   ON audit_logs(student_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created   ON audit_logs(created_at DESC);

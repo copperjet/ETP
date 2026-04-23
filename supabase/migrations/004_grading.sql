@@ -2,7 +2,7 @@
 -- 004_grading.sql
 -- ============================================================
 
-CREATE TABLE grading_scales (
+CREATE TABLE IF NOT EXISTS grading_scales (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   grade_label    TEXT NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE grading_scales (
   UNIQUE (school_id, grade_label)
 );
 
-CREATE TABLE assessment_templates (
+CREATE TABLE IF NOT EXISTS assessment_templates (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   section_id  UUID REFERENCES school_sections(id) ON DELETE CASCADE,
@@ -23,7 +23,7 @@ CREATE TABLE assessment_templates (
   order_index    INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE character_frameworks (
+CREATE TABLE IF NOT EXISTS character_frameworks (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE UNIQUE,
   is_enabled   BOOLEAN NOT NULL DEFAULT true,
@@ -72,9 +72,11 @@ ALTER TABLE assessment_templates  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE character_frameworks  ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "si_grading_scales"       ON grading_scales       FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_assessment_templates" ON assessment_templates;
 CREATE POLICY "si_assessment_templates" ON assessment_templates FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_character_frameworks" ON character_frameworks;
 CREATE POLICY "si_character_frameworks" ON character_frameworks FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_grading_school ON grading_scales(school_id);
-CREATE INDEX idx_at_school      ON assessment_templates(school_id);
-CREATE INDEX idx_at_section     ON assessment_templates(section_id);
+CREATE INDEX IF NOT EXISTS idx_grading_school ON grading_scales(school_id);
+CREATE INDEX IF NOT EXISTS idx_at_school      ON assessment_templates(school_id);
+CREATE INDEX IF NOT EXISTS idx_at_section     ON assessment_templates(section_id);

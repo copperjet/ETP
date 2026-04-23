@@ -2,7 +2,7 @@
 -- 011_reports.sql
 -- ============================================================
 
-CREATE TABLE report_templates (
+CREATE TABLE IF NOT EXISTS report_templates (
   id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id                 UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE UNIQUE,
   show_student_photo        BOOLEAN NOT NULL DEFAULT true,
@@ -13,7 +13,7 @@ CREATE TABLE report_templates (
   footer_text               TEXT
 );
 
-CREATE TABLE reports (
+CREATE TABLE IF NOT EXISTS reports (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id           UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id          UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -34,7 +34,7 @@ CREATE TABLE reports (
   UNIQUE (student_id, semester_id)
 );
 
-CREATE TABLE report_versions (
+CREATE TABLE IF NOT EXISTS report_versions (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id          UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   report_id          UUID NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
@@ -48,7 +48,7 @@ CREATE TABLE report_versions (
 );
 
 -- Ensure only one current version per report
-CREATE UNIQUE INDEX idx_one_current_version
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_current_version
   ON report_versions(report_id) WHERE is_current = true;
 
 -- Generate verification token
@@ -61,6 +61,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_verification_token ON report_versions;
 CREATE TRIGGER trg_verification_token BEFORE INSERT ON report_versions
 FOR EACH ROW EXECUTE FUNCTION generate_verification_token();
 
@@ -81,18 +82,22 @@ ALTER TABLE report_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reports          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE report_versions  ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "si_report_templates" ON report_templates;
 CREATE POLICY "si_report_templates" ON report_templates FOR ALL TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_reports" ON reports;
 CREATE POLICY "si_reports" ON reports FOR ALL TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 -- Report versions: read + insert only (no update/delete — immutable)
+DROP POLICY IF EXISTS "si_rv_read" ON report_versions;
 CREATE POLICY "si_rv_read" ON report_versions FOR SELECT TO authenticated
   USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_rv_insert" ON report_versions;
 CREATE POLICY "si_rv_insert" ON report_versions FOR INSERT TO authenticated
   WITH CHECK (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_reports_student   ON reports(student_id);
-CREATE INDEX idx_reports_semester  ON reports(semester_id);
-CREATE INDEX idx_reports_status    ON reports(status);
-CREATE INDEX idx_rv_report         ON report_versions(report_id);
-CREATE INDEX idx_rv_token          ON report_versions(verification_token);
+CREATE INDEX IF NOT EXISTS idx_reports_student   ON reports(student_id);
+CREATE INDEX IF NOT EXISTS idx_reports_semester  ON reports(semester_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status    ON reports(status);
+CREATE INDEX IF NOT EXISTS idx_rv_report         ON report_versions(report_id);
+CREATE INDEX IF NOT EXISTS idx_rv_token          ON report_versions(verification_token);

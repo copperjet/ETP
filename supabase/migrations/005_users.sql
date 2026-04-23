@@ -2,7 +2,7 @@
 -- 005_users.sql — Staff, Parents, Biometric sessions
 -- ============================================================
 
-CREATE TABLE staff (
+CREATE TABLE IF NOT EXISTS staff (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   auth_user_id  UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -17,7 +17,7 @@ CREATE TABLE staff (
   UNIQUE (school_id, email)
 );
 
-CREATE TABLE staff_roles (
+CREATE TABLE IF NOT EXISTS staff_roles (
   id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   staff_id  UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
@@ -28,7 +28,7 @@ CREATE TABLE staff_roles (
   UNIQUE (staff_id, role)
 );
 
-CREATE TABLE parents (
+CREATE TABLE IF NOT EXISTS parents (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -40,7 +40,7 @@ CREATE TABLE parents (
   UNIQUE (school_id, email)
 );
 
-CREATE TABLE push_tokens (
+CREATE TABLE IF NOT EXISTS push_tokens (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id  UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -51,7 +51,7 @@ CREATE TABLE push_tokens (
   UNIQUE (user_id, device_id)
 );
 
-CREATE TABLE biometric_sessions (
+CREATE TABLE IF NOT EXISTS biometric_sessions (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id               UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   device_id             TEXT NOT NULL,
@@ -71,6 +71,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS trg_staff_number ON staff;
 CREATE TRIGGER trg_staff_number BEFORE INSERT ON staff
 FOR EACH ROW WHEN (NEW.staff_number IS NULL) EXECUTE FUNCTION generate_staff_number();
 
@@ -82,19 +83,22 @@ ALTER TABLE push_tokens       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE biometric_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "si_staff"       ON staff       FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
+DROP POLICY IF EXISTS "si_staff_roles" ON staff_roles;
 CREATE POLICY "si_staff_roles" ON staff_roles FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_parents"     ON parents     FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
 -- Push tokens: own device only
+DROP POLICY IF EXISTS "push_tokens_own" ON push_tokens;
 CREATE POLICY "push_tokens_own" ON push_tokens FOR ALL TO authenticated
   USING (user_id = auth.uid());
 -- Biometric: own device only
+DROP POLICY IF EXISTS "biometric_own" ON biometric_sessions;
 CREATE POLICY "biometric_own" ON biometric_sessions FOR ALL TO authenticated
   USING (user_id = auth.uid());
 
-CREATE INDEX idx_staff_school      ON staff(school_id);
-CREATE INDEX idx_staff_auth        ON staff(auth_user_id);
-CREATE INDEX idx_staff_roles_staff ON staff_roles(staff_id);
-CREATE INDEX idx_parents_school    ON parents(school_id);
-CREATE INDEX idx_parents_auth      ON parents(auth_user_id);
-CREATE INDEX idx_push_tokens_user  ON push_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_staff_school      ON staff(school_id);
+CREATE INDEX IF NOT EXISTS idx_staff_auth        ON staff(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_staff_roles_staff ON staff_roles(staff_id);
+CREATE INDEX IF NOT EXISTS idx_parents_school    ON parents(school_id);
+CREATE INDEX IF NOT EXISTS idx_parents_auth      ON parents(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user  ON push_tokens(user_id);

@@ -22,9 +22,12 @@ const ROLE_META: Record<UserRole, { label: string; icon: string; color: string; 
   st:         { label: 'Subject Teacher',     icon: 'book',            color: '#7C3AED', description: 'Subject assignments and marks entry' },
   admin:      { label: 'Administrator',       icon: 'shield',          color: '#1D4ED8', description: 'School-wide management and approvals' },
   super_admin:{ label: 'Super Admin',         icon: 'shield-checkmark',color: '#1D4ED8', description: 'Full system access across all schools' },
-  finance:    { label: 'Finance',             icon: 'card',            color: '#059669', description: 'Fee clearance and financial reports' },
-  frontdesk:  { label: 'Front Desk',         icon: 'headset',         color: '#D97706', description: 'Admission inquiries and visitor management' },
-  parent:     { label: 'Parent',             icon: 'heart',           color: '#DB2777', description: "Your children's progress and reports" },
+  principal:  { label: 'Principal',          icon: 'ribbon',          color: '#1D4ED8', description: 'School leadership and oversight' },
+  coordinator:{ label: 'Coordinator',        icon: 'git-merge',       color: '#1D4ED8', description: 'Academic coordination and scheduling' },
+  hod:        { label: 'Head of Department', icon: 'layers',          color: '#1D4ED8', description: 'Departmental marks and staff oversight' },
+  finance:    { label: 'Finance',            icon: 'card',            color: '#059669', description: 'Fee clearance and financial reports' },
+  front_desk: { label: 'Front Desk',         icon: 'headset',         color: '#D97706', description: 'Admission inquiries and visitor management' },
+  parent:     { label: 'Parent',            icon: 'heart',           color: '#DB2777', description: "Your children's progress and reports" },
 };
 
 export default function SwitchRoleScreen() {

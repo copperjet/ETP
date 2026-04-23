@@ -2,7 +2,7 @@
 -- 013_finance.sql
 -- ============================================================
 
-CREATE TABLE finance_records (
+CREATE TABLE IF NOT EXISTS finance_records (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -14,7 +14,7 @@ CREATE TABLE finance_records (
   UNIQUE (student_id, semester_id)
 );
 
-CREATE TABLE payment_transactions (
+CREATE TABLE IF NOT EXISTS payment_transactions (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   finance_record_id UUID NOT NULL REFERENCES finance_records(id) ON DELETE CASCADE,
@@ -32,7 +32,7 @@ ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "si_finance"       ON finance_records      FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 CREATE POLICY "si_payments"      ON payment_transactions FOR ALL TO authenticated USING (school_id=(auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
-CREATE INDEX idx_fr_student   ON finance_records(student_id);
-CREATE INDEX idx_fr_semester  ON finance_records(semester_id);
-CREATE INDEX idx_fr_status    ON finance_records(status);
-CREATE INDEX idx_pt_record    ON payment_transactions(finance_record_id);
+CREATE INDEX IF NOT EXISTS idx_fr_student   ON finance_records(student_id);
+CREATE INDEX IF NOT EXISTS idx_fr_semester  ON finance_records(semester_id);
+CREATE INDEX IF NOT EXISTS idx_fr_status    ON finance_records(status);
+CREATE INDEX IF NOT EXISTS idx_pt_record    ON payment_transactions(finance_record_id);

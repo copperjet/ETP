@@ -53,6 +53,15 @@ function useClassReports(staffId: string | null, schoolId: string) {
       if (!assignment) return { reports: [], semesterId: null };
       const { stream_id, semester_id } = assignment as any;
 
+      const { data: streamStudents } = await supabase
+        .from('students')
+        .select('id')
+        .eq('school_id', schoolId)
+        .eq('stream_id', stream_id)
+        .eq('status', 'active');
+      const studentIds = (streamStudents ?? []).map((s: any) => s.id);
+      if (studentIds.length === 0) return { reports: [], semesterId: semester_id };
+
       const { data, error } = await supabase
         .from('reports')
         .select(`
@@ -61,8 +70,8 @@ function useClassReports(staffId: string | null, schoolId: string) {
         `)
         .eq('school_id', schoolId)
         .eq('semester_id', semester_id)
-        .in('students.stream_id', [stream_id])
-        .order('students(full_name)');
+        .in('student_id', studentIds)
+        .order('created_at', { ascending: false });
       if (error) throw error;
 
       return { reports: (data ?? []) as any[], semesterId: semester_id };

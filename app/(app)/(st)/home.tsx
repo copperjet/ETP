@@ -34,7 +34,7 @@ function useSTDashboard(staffId: string | null, schoolId: string) {
         .select(`
           id, subject_id, stream_id, semester_id,
           subjects ( name, department ),
-          streams ( name, grades ( name ) ),
+          streams ( name, grades ( name, school_sections ( section_type ) ) ),
           semesters ( name, is_active )
         `)
         .eq('staff_id', staffId!)
@@ -45,6 +45,8 @@ function useSTDashboard(staffId: string | null, schoolId: string) {
 
       const marksProgress = await Promise.all(
         activeAssignments.map(async (a: any) => {
+          const sectionType = a.streams?.grades?.school_sections?.section_type ?? 'primary';
+          const assessmentTypeCount = sectionType === 'igcse' ? 1 : 3;
           const [studentsRes, marksRes] = await Promise.all([
             supabase.from('students').select('id', { count: 'exact', head: true })
               .eq('school_id', schoolId).eq('stream_id', a.stream_id).eq('status', 'active'),
@@ -54,7 +56,7 @@ function useSTDashboard(staffId: string | null, schoolId: string) {
           ]);
           const studentCount = studentsRes.count ?? 0;
           const markedCount = marksRes.count ?? 0;
-          const expected = studentCount * 3;
+          const expected = studentCount * assessmentTypeCount;
           return { ...a, studentCount, markedCount, expected };
         })
       );

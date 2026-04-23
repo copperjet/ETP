@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
         id, status, hrt_comment, overall_percentage, class_position,
         approved_by, approved_at, released_at,
         students (
-          id, full_name, student_number, date_of_birth, gender, photo_url,
+          id, full_name, student_number, date_of_birth, gender, photo_url, stream_id,
           grades ( name ),
           streams ( name ),
           school_sections ( name )
@@ -105,22 +105,22 @@ Deno.serve(async (req) => {
       .select("staff(full_name)")
       .eq("school_id", schoolId)
       .eq("semester_id", semesterId)
-      .eq("stream_id", r.students?.streams?.id ?? "")
+      .eq("stream_id", r.students?.stream_id ?? "")
       .maybeSingle();
     const hrtName = (hrtAsgn as any)?.staff?.full_name ?? "Class Teacher";
 
     // ── Grading helper ────────────────────────────────────────
     const { data: gradingRows } = await adminClient
       .from("grading_scales")
-      .select("label, min_percent, max_percent")
+      .select("grade_label, min_percentage, max_percentage")
       .eq("school_id", schoolId)
-      .order("min_percent", { ascending: false });
+      .order("min_percentage", { ascending: false });
 
     function gradeLabel(pct: number | null): string {
       if (pct === null) return "—";
       const scale = (gradingRows ?? []) as any[];
-      const row = scale.find(g => pct >= g.min_percent && pct <= g.max_percent);
-      return row?.label ?? "—";
+      const row = scale.find(g => pct >= g.min_percentage && pct <= g.max_percentage);
+      return row?.grade_label ?? "—";
     }
 
     // ── Build subject rows ────────────────────────────────────
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       const fa1 = subj.fa1?.value; const fa2 = subj.fa2?.value; const sum = subj.summative?.value;
       if (fa1 !== undefined && fa2 !== undefined && sum !== undefined &&
           fa1 !== null && fa2 !== null && sum !== null) {
-        return Math.round((fa1 * 0.2) + (fa2 * 0.2) + (sum * 0.6) * 10) / 10;
+        return Math.round(((fa1 * 0.2) + (fa2 * 0.2) + (sum * 0.6)) * 10) / 10;
       }
       if (sum !== undefined && sum !== null && fa1 === undefined && fa2 === undefined) return sum;
       return null;
@@ -149,6 +149,19 @@ Deno.serve(async (req) => {
 
     const isIGCSE = !subjectRows.some(r => r.fa1 !== null || r.fa2 !== null);
     const isDraft  = !["approved","finance_pending","released"].includes(r.status);
+
+    // ── Compute & persist overall_percentage ──────────────────
+    const subjectTotals = subjectRows.map(s => s.total).filter((t): t is number => t !== null);
+    const computedOverallPct = subjectTotals.length > 0
+      ? Math.round((subjectTotals.reduce((a, b) => a + b, 0) / subjectTotals.length) * 10) / 10
+      : null;
+
+    if (computedOverallPct !== null) {
+      await adminClient
+        .from("reports")
+        .update({ overall_percentage: computedOverallPct, updated_at: new Date().toISOString() })
+        .eq("id", report_id);
+    }
 
     // ── Verification token ─────────────────────────────────────
     let verToken = "";
@@ -164,7 +177,7 @@ Deno.serve(async (req) => {
     const html = buildReportHTML({
       school: r.schools, student: r.students, semester: r.semesters,
       subjectRows, creed: creed as any, att, hrtName, hrtComment: r.hrt_comment,
-      overallPct: r.overall_percentage, classPos: r.class_position,
+      overallPct: computedOverallPct ?? r.overall_percentage, classPos: r.class_position,
       schoolColor, accentColor, isIGCSE, isDraft, verToken,
     });
 

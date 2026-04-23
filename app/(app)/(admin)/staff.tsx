@@ -1,11 +1,11 @@
 /**
  * Admin Staff Management — /(app)/(admin)/staff
- * View all staff, search, view roles, toggle active/inactive
+ * List · Add · Edit roles · Activate/Deactivate · Send invite
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, StyleSheet, SafeAreaView, FlatList,
-  TouchableOpacity, Alert, RefreshControl,
+  TouchableOpacity, Alert, RefreshControl, TextInput, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,48 +15,60 @@ import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Avatar, Badge, SearchBar, BottomSheet,
-  SkeletonRow, EmptyState, ErrorState,
+  ThemedText, Avatar, Badge, SearchBar, FAB, BottomSheet,
+  Skeleton, EmptyState, ErrorState,
 } from '../../../components/ui';
-import { Spacing, Radius } from '../../../constants/Typography';
+import { Spacing, Radius, Typography } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
+import type { UserRole } from '../../../types/database';
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Admin', admin: 'Admin', front_desk: 'Front Desk',
-  finance: 'Finance', principal: 'Principal', coordinator: 'Coordinator',
-  hod: 'HOD', hrt: 'HRT', st: 'Subject Teacher',
-};
+// ── Constants ─────────────────────────────────────────────────
+const ALL_ROLES: { value: UserRole; label: string }[] = [
+  { value: 'admin',       label: 'Administrator' },
+  { value: 'super_admin', label: 'Super Admin' },
+  { value: 'principal',   label: 'Principal' },
+  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'hod',         label: 'Head of Department' },
+  { value: 'hrt',         label: 'Class Teacher (HRT)' },
+  { value: 'st',          label: 'Subject Teacher' },
+  { value: 'finance',     label: 'Finance' },
+  { value: 'front_desk',  label: 'Front Desk' },
+];
 
+const ROLE_LABELS: Record<string, string> = Object.fromEntries(ALL_ROLES.map(r => [r.value, r.label]));
+
+// ── Data hooks ────────────────────────────────────────────────
 function useStaff(schoolId: string) {
   return useQuery({
     queryKey: ['admin-staff', schoolId],
     enabled: !!schoolId,
     staleTime: 1000 * 60 * 2,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('staff')
-        .select('id, full_name, email, phone, department, status, staff_number, date_joined')
-        .eq('school_id', schoolId)
-        .order('full_name');
-      if (error) throw error;
-
-      const { data: roles } = await supabase
-        .from('staff_roles')
-        .select('staff_id, role')
-        .eq('school_id', schoolId);
+      const [staffRes, rolesRes] = await Promise.all([
+        supabase
+          .from('staff')
+          .select('id, full_name, email, phone, department, status, staff_number, date_joined, auth_user_id')
+          .eq('school_id', schoolId)
+          .order('full_name'),
+        supabase
+          .from('staff_roles')
+          .select('staff_id, role')
+          .eq('school_id', schoolId),
+      ]);
+      if (staffRes.error) throw staffRes.error;
 
       const rolesMap: Record<string, string[]> = {};
-      (roles ?? []).forEach((r: any) => {
-        if (!rolesMap[r.staff_id]) rolesMap[r.staff_id] = [];
-        rolesMap[r.staff_id].push(r.role);
+      (rolesRes.data ?? []).forEach((r: any) => {
+        rolesMap[r.staff_id] = [...(rolesMap[r.staff_id] ?? []), r.role];
       });
 
-      return (data ?? []).map((s: any) => ({ ...s, roles: rolesMap[s.id] ?? [] })) as any[];
+      return (staffRes.data ?? []).map((s: any) => ({ ...s, roles: rolesMap[s.id] ?? [] }));
     },
   });
 }
 
+// ── Main screen ───────────────────────────────────────────────
 export default function AdminStaffScreen() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
@@ -64,18 +76,95 @@ export default function AdminStaffScreen() {
   const schoolId = user?.schoolId ?? '';
 
   const [search, setSearch] = useState('');
+  const [filterActive, setFilterActive] = useState<'active' | 'all' | 'inactive'>('active');
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('active');
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [addVisible, setAddVisible] = useState(false);
+  const [editRolesMode, setEditRolesMode] = useState(false);
+
+  // Add Staff form state
+  const [form, setForm] = useState({ full_name: '', email: '', department: '', phone: '' });
+  const [formRoles, setFormRoles] = useState<UserRole[]>([]);
+  const [formError, setFormError] = useState('');
 
   const { data, isLoading, isError, refetch, isFetching } = useStaff(schoolId);
+
+  // ── Mutations ─────────────────────────────────────────────
+  const addStaff = useMutation({
+    mutationFn: async () => {
+      if (!form.full_name.trim() || !form.email.trim()) throw new Error('Name and email are required.');
+      if (formRoles.length === 0) throw new Error('Assign at least one role.');
+
+      const { data: newStaff, error } = await supabase
+        .from('staff')
+        .insert({
+          school_id: schoolId,
+          full_name: form.full_name.trim(),
+          email: form.email.trim().toLowerCase(),
+          department: form.department.trim() || null,
+          phone: form.phone.trim() || null,
+          date_joined: new Date().toISOString().split('T')[0],
+        } as any)
+        .select('id')
+        .single();
+      if (error) throw new Error(error.message);
+
+      const staffId = (newStaff as any).id;
+      const { error: roleErr } = await supabase
+        .from('staff_roles')
+        .insert(formRoles.map(r => ({ school_id: schoolId, staff_id: staffId, role: r })) as any);
+      if (roleErr) throw new Error(roleErr.message);
+
+      await supabase.from('audit_logs').insert({
+        school_id: schoolId,
+        event_type: 'account_created',
+        actor_id: user?.staffId,
+        data: { staff_id: staffId, email: form.email, roles: formRoles },
+      } as any);
+
+      return staffId;
+    },
+    onSuccess: () => {
+      haptics.success();
+      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
+      setAddVisible(false);
+      setForm({ full_name: '', email: '', department: '', phone: '' });
+      setFormRoles([]);
+      setFormError('');
+    },
+    onError: (err: any) => {
+      haptics.error();
+      setFormError(err.message ?? 'Could not create staff member.');
+    },
+  });
+
+  const updateRoles = useMutation({
+    mutationFn: async ({ staffId, roles }: { staffId: string; roles: UserRole[] }) => {
+      await supabase.from('staff_roles').delete().eq('staff_id', staffId).eq('school_id', schoolId);
+      if (roles.length > 0) {
+        const { error } = await supabase
+          .from('staff_roles')
+          .insert(roles.map(r => ({ school_id: schoolId, staff_id: staffId, role: r })) as any);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      haptics.success();
+      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
+      setEditRolesMode(false);
+      // refresh selected staff roles display
+      const updated = data?.find((s: any) => s.id === selectedStaff?.id);
+      if (updated) setSelectedStaff(updated);
+    },
+    onError: () => haptics.error(),
+  });
 
   const toggleStatus = useMutation({
     mutationFn: async ({ staffId, currentStatus }: { staffId: string; currentStatus: string }) => {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('staff')
-        .update({ status: newStatus })
+        .update({ status: newStatus } as any)
         .eq('id', staffId)
         .eq('school_id', schoolId);
       if (error) throw error;
@@ -84,37 +173,66 @@ export default function AdminStaffScreen() {
     onSuccess: () => {
       haptics.success();
       queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      setSheetVisible(false);
+      setDetailVisible(false);
     },
     onError: () => haptics.error(),
   });
 
-  const handleToggle = (staff: any) => {
-    Alert.alert(
-      `${staff.status === 'active' ? 'Deactivate' : 'Activate'} Staff`,
-      `Are you sure you want to ${staff.status === 'active' ? 'deactivate' : 'activate'} ${staff.full_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
+  const sendInvite = useMutation({
+    mutationFn: async (staff: any) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/invite-user`,
         {
-          text: staff.status === 'active' ? 'Deactivate' : 'Activate',
-          style: staff.status === 'active' ? 'destructive' : 'default',
-          onPress: () => toggleStatus.mutate({ staffId: staff.id, currentStatus: staff.status }),
-        },
-      ]
-    );
-  };
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            staff_id: staff.id,
+            email: staff.email,
+            full_name: staff.full_name,
+            school_id: schoolId,
+          }),
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Invite failed');
+      return json;
+    },
+    onSuccess: () => {
+      haptics.success();
+      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
+      Alert.alert('Invite Sent', 'An email has been sent with a login link.');
+    },
+    onError: (err: any) => {
+      haptics.error();
+      Alert.alert('Invite Failed', err.message ?? 'Could not send invite.');
+    },
+  });
 
-  const allStaff = data ?? [];
-  const filtered = allStaff
-    .filter(s => filterActive === 'all' ? true : s.status === filterActive)
-    .filter(s =>
+  // ── Filtered list ─────────────────────────────────────────
+  const filtered = (data ?? [])
+    .filter((s: any) => filterActive === 'all' || s.status === filterActive)
+    .filter((s: any) =>
       !search ||
       s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      (s.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase()) ||
       (s.staff_number ?? '').toLowerCase().includes(search.toLowerCase())
     );
 
+  const openDetail = useCallback((staff: any) => {
+    setSelectedStaff(staff);
+    setEditRolesMode(false);
+    setDetailVisible(true);
+    haptics.light();
+  }, []);
+
+  const toggleFormRole = (role: UserRole) =>
+    setFormRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+
+  // ── Render ────────────────────────────────────────────────
   if (isError) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -130,11 +248,13 @@ export default function AdminStaffScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
-        <ThemedText variant="h4">Staff ({allStaff.filter(s => s.status === 'active').length} active)</ThemedText>
+        <ThemedText variant="h4">
+          Staff{data ? ` (${data.filter((s: any) => s.status === 'active').length} active)` : ''}
+        </ThemedText>
         <View style={{ width: 36 }} />
       </View>
 
-      {/* Search + filter */}
+      {/* Search + filter chips */}
       <View style={{ paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, gap: Spacing.sm }}>
         <SearchBar value={search} onChangeText={setSearch} placeholder="Search by name, email, ID…" />
         <View style={styles.filterRow}>
@@ -142,9 +262,16 @@ export default function AdminStaffScreen() {
             <TouchableOpacity
               key={f}
               onPress={() => setFilterActive(f)}
-              style={[styles.filterChip, { borderColor: filterActive === f ? colors.brand.primary : colors.border, backgroundColor: filterActive === f ? colors.brand.primary + '14' : colors.surfaceSecondary }]}
+              style={[styles.chip, {
+                borderColor: filterActive === f ? colors.brand.primary : colors.border,
+                backgroundColor: filterActive === f ? colors.brand.primary + '14' : colors.surfaceSecondary,
+              }]}
             >
-              <ThemedText variant="bodySm" style={{ color: filterActive === f ? colors.brand.primary : colors.textMuted, fontWeight: filterActive === f ? '700' : '500', textTransform: 'capitalize' }}>
+              <ThemedText variant="bodySm" style={{
+                color: filterActive === f ? colors.brand.primary : colors.textMuted,
+                fontWeight: filterActive === f ? '700' : '500',
+                textTransform: 'capitalize',
+              }}>
                 {f}
               </ThemedText>
             </TouchableOpacity>
@@ -152,27 +279,41 @@ export default function AdminStaffScreen() {
         </View>
       </View>
 
+      {/* List */}
       {isLoading ? (
         <View style={{ padding: Spacing.base, gap: Spacing.sm }}>
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={44} height={44} radius={22} />
+              <View style={{ flex: 1, gap: 6, marginLeft: Spacing.md }}>
+                <Skeleton width="55%" height={14} />
+                <Skeleton width="75%" height={11} />
+              </View>
+              <Skeleton width={60} height={24} radius={12} />
+            </View>
+          ))}
         </View>
       ) : filtered.length === 0 ? (
         <EmptyState
           title={search ? `No results for "${search}"` : 'No staff found'}
-          description={!search ? 'Staff will appear here once added.' : ''}
+          description={!search ? 'Tap + to add a staff member.' : ''}
         />
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={s => s.id}
+          keyExtractor={(s: any) => s.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} />}
           renderItem={({ item: staff }) => (
             <TouchableOpacity
-              onPress={() => { setSelectedStaff(staff); setSheetVisible(true); }}
+              onPress={() => openDetail(staff)}
               activeOpacity={0.8}
-              style={[styles.staffRow, { backgroundColor: colors.surface, borderColor: colors.border, opacity: staff.status === 'inactive' ? 0.6 : 1 }]}
+              style={[styles.staffRow, {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                opacity: staff.status === 'inactive' ? 0.55 : 1,
+              }]}
             >
               <Avatar name={staff.full_name} size={44} />
               <View style={{ flex: 1 }}>
@@ -193,115 +334,327 @@ export default function AdminStaffScreen() {
                   </View>
                 )}
               </View>
-              <Badge label={staff.status} preset={staff.status === 'active' ? 'success' : 'neutral'} />
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Badge label={staff.status} preset={staff.status === 'active' ? 'success' : 'neutral'} />
+                {!staff.auth_user_id && (
+                  <View style={[styles.noLoginBadge, { borderColor: Colors.semantic.warning }]}>
+                    <ThemedText variant="label" style={{ color: Colors.semantic.warning, fontSize: 9 }}>NO LOGIN</ThemedText>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           )}
         />
       )}
 
-      {/* Staff detail sheet */}
+      {/* FAB — Add Staff */}
+      <FAB
+        icon={<Ionicons name="person-add" size={22} color="#fff" />}
+        label="Add Staff"
+        onPress={() => {
+          haptics.light();
+          setForm({ full_name: '', email: '', department: '', phone: '' });
+          setFormRoles([]);
+          setFormError('');
+          setAddVisible(true);
+        }}
+      />
+
+      {/* ── Add Staff Sheet ─────────────────────────────────── */}
       <BottomSheet
-        visible={sheetVisible && !!selectedStaff}
-        onClose={() => setSheetVisible(false)}
-        title={selectedStaff?.full_name ?? 'Staff'}
-        snapHeight={460}
+        visible={addVisible}
+        onClose={() => setAddVisible(false)}
+        title="Add Staff Member"
+        snapHeight={640}
       >
-        {selectedStaff && (
-          <View style={{ gap: Spacing.base }}>
-            {/* Info rows */}
-            {[
-              { icon: 'id-card-outline', label: selectedStaff.staff_number },
-              { icon: 'mail-outline', label: selectedStaff.email },
-              { icon: 'call-outline', label: selectedStaff.phone ?? '—' },
-              { icon: 'business-outline', label: selectedStaff.department ?? '—' },
-              { icon: 'calendar-outline', label: selectedStaff.date_joined ? `Joined ${format(parseISO(selectedStaff.date_joined), 'd MMM yyyy')}` : '—' },
-            ].map(row => (
-              <View key={row.icon} style={styles.detailRow}>
-                <Ionicons name={row.icon as any} size={16} color={colors.textMuted} />
-                <ThemedText variant="body" style={{ marginLeft: Spacing.sm, flex: 1 }}>{row.label}</ThemedText>
-              </View>
-            ))}
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.form}>
+            <FormField label="Full Name *" value={form.full_name} onChangeText={v => setForm(p => ({ ...p, full_name: v }))} placeholder="e.g. Joyce Kamau" colors={colors} />
+            <FormField label="Email *" value={form.email} onChangeText={v => setForm(p => ({ ...p, email: v }))} placeholder="e.g. jkamau@school.edu" keyboardType="email-address" autoCapitalize="none" colors={colors} />
+            <FormField label="Department" value={form.department} onChangeText={v => setForm(p => ({ ...p, department: v }))} placeholder="e.g. English" colors={colors} />
+            <FormField label="Phone" value={form.phone} onChangeText={v => setForm(p => ({ ...p, phone: v }))} placeholder="+260 97…" keyboardType="phone-pad" colors={colors} />
 
-            {/* Roles */}
-            {selectedStaff.roles.length > 0 && (
-              <View>
-                <ThemedText variant="label" color="muted" style={{ marginBottom: Spacing.sm }}>ROLES</ThemedText>
-                <View style={styles.roleChips}>
-                  {selectedStaff.roles.map((r: string) => (
-                    <View key={r} style={[styles.roleChip, { backgroundColor: colors.brand.primary + '18' }]}>
-                      <ThemedText variant="label" style={{ color: colors.brand.primary }}>{ROLE_LABELS[r] ?? r}</ThemedText>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
+            <ThemedText variant="label" color="muted" style={{ marginBottom: Spacing.sm, marginTop: Spacing.sm }}>
+              ROLES (select at least one)
+            </ThemedText>
+            <View style={styles.roleGrid}>
+              {ALL_ROLES.map(r => {
+                const active = formRoles.includes(r.value);
+                return (
+                  <TouchableOpacity
+                    key={r.value}
+                    onPress={() => { haptics.selection(); toggleFormRole(r.value); }}
+                    style={[styles.roleToggle, {
+                      backgroundColor: active ? colors.brand.primary + '18' : colors.surfaceSecondary,
+                      borderColor: active ? colors.brand.primary : colors.border,
+                    }]}
+                  >
+                    {active && <Ionicons name="checkmark-circle" size={14} color={colors.brand.primary} />}
+                    <ThemedText variant="bodySm" style={{ color: active ? colors.brand.primary : colors.textSecondary, fontWeight: active ? '700' : '500' }}>
+                      {r.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-            {/* Toggle status */}
+            {formError ? (
+              <View style={[styles.errorBox, { backgroundColor: Colors.semantic.errorLight }]}>
+                <ThemedText variant="bodySm" style={{ color: Colors.semantic.error }}>{formError}</ThemedText>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-              onPress={() => handleToggle(selectedStaff)}
-              disabled={toggleStatus.isPending}
-              style={[
-                styles.toggleBtn,
-                { borderColor: selectedStaff.status === 'active' ? Colors.semantic.error : Colors.semantic.success },
-              ]}
+              onPress={() => addStaff.mutate()}
+              disabled={addStaff.isPending}
+              style={[styles.submitBtn, { backgroundColor: colors.brand.primary, opacity: addStaff.isPending ? 0.7 : 1 }]}
             >
-              <Ionicons
-                name={selectedStaff.status === 'active' ? 'ban-outline' : 'checkmark-circle-outline'}
-                size={18}
-                color={selectedStaff.status === 'active' ? Colors.semantic.error : Colors.semantic.success}
-              />
-              <ThemedText variant="body" style={{ marginLeft: 8, fontWeight: '600', color: selectedStaff.status === 'active' ? Colors.semantic.error : Colors.semantic.success }}>
-                {selectedStaff.status === 'active' ? 'Deactivate Account' : 'Reactivate Account'}
+              <Ionicons name={addStaff.isPending ? 'sync-outline' : 'checkmark'} size={20} color="#fff" />
+              <ThemedText variant="bodyLg" style={{ color: '#fff', fontWeight: '700', marginLeft: 8 }}>
+                {addStaff.isPending ? 'Creating…' : 'Create Staff Member'}
               </ThemedText>
             </TouchableOpacity>
+            <ThemedText variant="caption" color="muted" style={{ textAlign: 'center', marginTop: Spacing.sm }}>
+              You can send a login invite after creating the account.
+            </ThemedText>
           </View>
+        </ScrollView>
+      </BottomSheet>
+
+      {/* ── Staff Detail Sheet ──────────────────────────────── */}
+      <BottomSheet
+        visible={detailVisible && !!selectedStaff}
+        onClose={() => { setDetailVisible(false); setEditRolesMode(false); }}
+        title={selectedStaff?.full_name ?? 'Staff'}
+        snapHeight={editRolesMode ? 560 : 500}
+      >
+        {selectedStaff && !editRolesMode && (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={{ gap: Spacing.base, paddingBottom: Spacing.xl }}>
+              {[
+                { icon: 'id-card-outline',  label: selectedStaff.staff_number ?? '—' },
+                { icon: 'mail-outline',     label: selectedStaff.email },
+                { icon: 'call-outline',     label: selectedStaff.phone ?? '—' },
+                { icon: 'business-outline', label: selectedStaff.department ?? '—' },
+                { icon: 'calendar-outline', label: selectedStaff.date_joined ? `Joined ${format(parseISO(selectedStaff.date_joined), 'd MMM yyyy')}` : '—' },
+              ].map(row => (
+                <View key={row.icon} style={styles.detailRow}>
+                  <Ionicons name={row.icon as any} size={16} color={colors.textMuted} />
+                  <ThemedText variant="body" style={{ marginLeft: Spacing.sm, flex: 1 }}>{row.label}</ThemedText>
+                </View>
+              ))}
+
+              {/* Roles display */}
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
+                  <ThemedText variant="label" color="muted" style={{ flex: 1 }}>ROLES</ThemedText>
+                  <TouchableOpacity onPress={() => setEditRolesMode(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <ThemedText variant="bodySm" style={{ color: colors.brand.primary, fontWeight: '600' }}>Edit</ThemedText>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.roleChips}>
+                  {selectedStaff.roles.length > 0
+                    ? selectedStaff.roles.map((r: string) => (
+                        <View key={r} style={[styles.roleChip, { backgroundColor: colors.brand.primary + '18' }]}>
+                          <ThemedText variant="label" style={{ color: colors.brand.primary }}>{ROLE_LABELS[r] ?? r}</ThemedText>
+                        </View>
+                      ))
+                    : <ThemedText variant="bodySm" color="muted">No roles assigned</ThemedText>
+                  }
+                </View>
+              </View>
+
+              {/* Auth status + invite */}
+              <View style={[styles.authCard, { backgroundColor: selectedStaff.auth_user_id ? Colors.semantic.successLight : Colors.semantic.warningLight, borderColor: selectedStaff.auth_user_id ? Colors.semantic.success : Colors.semantic.warning }]}>
+                <Ionicons
+                  name={selectedStaff.auth_user_id ? 'shield-checkmark' : 'mail-unread-outline'}
+                  size={16}
+                  color={selectedStaff.auth_user_id ? Colors.semantic.success : Colors.semantic.warning}
+                />
+                <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                  <ThemedText variant="bodySm" style={{ fontWeight: '600', color: selectedStaff.auth_user_id ? Colors.semantic.success : Colors.semantic.warning }}>
+                    {selectedStaff.auth_user_id ? 'Login enabled' : 'No login account yet'}
+                  </ThemedText>
+                  <ThemedText variant="caption" color="muted">
+                    {selectedStaff.auth_user_id ? 'This staff member can sign in.' : 'Send an invite to create their login.'}
+                  </ThemedText>
+                </View>
+                {!selectedStaff.auth_user_id && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert('Send Invite', `Send a login invite to ${selectedStaff.email}?`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Send', onPress: () => sendInvite.mutate(selectedStaff) },
+                      ]);
+                    }}
+                    disabled={sendInvite.isPending}
+                    style={[styles.inviteBtn, { backgroundColor: Colors.semantic.warning }]}
+                  >
+                    <ThemedText variant="label" style={{ color: '#fff', fontWeight: '700' }}>
+                      {sendInvite.isPending ? '…' : 'Invite'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Toggle status */}
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    selectedStaff.status === 'active' ? 'Deactivate Staff' : 'Activate Staff',
+                    `${selectedStaff.status === 'active' ? 'Deactivate' : 'Activate'} ${selectedStaff.full_name}?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: selectedStaff.status === 'active' ? 'Deactivate' : 'Activate',
+                        style: selectedStaff.status === 'active' ? 'destructive' : 'default',
+                        onPress: () => toggleStatus.mutate({ staffId: selectedStaff.id, currentStatus: selectedStaff.status }),
+                      },
+                    ]
+                  );
+                }}
+                disabled={toggleStatus.isPending}
+                style={[styles.toggleBtn, { borderColor: selectedStaff.status === 'active' ? Colors.semantic.error : Colors.semantic.success }]}
+              >
+                <Ionicons
+                  name={selectedStaff.status === 'active' ? 'ban-outline' : 'checkmark-circle-outline'}
+                  size={18}
+                  color={selectedStaff.status === 'active' ? Colors.semantic.error : Colors.semantic.success}
+                />
+                <ThemedText variant="body" style={{ marginLeft: 8, fontWeight: '600', color: selectedStaff.status === 'active' ? Colors.semantic.error : Colors.semantic.success }}>
+                  {selectedStaff.status === 'active' ? 'Deactivate Account' : 'Reactivate Account'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
+
+        {/* ── Edit Roles mode ──────────────────────────────── */}
+        {selectedStaff && editRolesMode && (
+          <EditRolesPanel
+            staff={selectedStaff}
+            colors={colors}
+            isPending={updateRoles.isPending}
+            onSave={(roles) => updateRoles.mutate({ staffId: selectedStaff.id, roles })}
+            onCancel={() => setEditRolesMode(false)}
+          />
         )}
       </BottomSheet>
     </SafeAreaView>
   );
 }
 
+// ── Edit Roles panel ──────────────────────────────────────────
+function EditRolesPanel({ staff, colors, isPending, onSave, onCancel }: {
+  staff: any; colors: any; isPending: boolean;
+  onSave: (roles: UserRole[]) => void; onCancel: () => void;
+}) {
+  const [selected, setSelected] = useState<UserRole[]>(staff.roles as UserRole[]);
+  const toggle = (role: UserRole) =>
+    setSelected(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+
+  return (
+    <View style={{ gap: Spacing.base, paddingBottom: Spacing.xl }}>
+      <ThemedText variant="bodySm" color="muted">Toggle roles for {staff.full_name}</ThemedText>
+      <View style={styles.roleGrid}>
+        {ALL_ROLES.map(r => {
+          const active = selected.includes(r.value);
+          return (
+            <TouchableOpacity
+              key={r.value}
+              onPress={() => { haptics.selection(); toggle(r.value); }}
+              style={[styles.roleToggle, {
+                backgroundColor: active ? colors.brand.primary + '18' : colors.surfaceSecondary,
+                borderColor: active ? colors.brand.primary : colors.border,
+              }]}
+            >
+              {active && <Ionicons name="checkmark-circle" size={14} color={colors.brand.primary} />}
+              <ThemedText variant="bodySm" style={{ color: active ? colors.brand.primary : colors.textSecondary, fontWeight: active ? '700' : '500' }}>
+                {r.label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+        <TouchableOpacity onPress={onCancel} style={[styles.cancelBtn, { borderColor: colors.border, flex: 1 }]}>
+          <ThemedText variant="body" color="muted">Cancel</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => onSave(selected)}
+          disabled={isPending || selected.length === 0}
+          style={[styles.submitBtn, { backgroundColor: colors.brand.primary, flex: 2, opacity: isPending || selected.length === 0 ? 0.6 : 1 }]}
+        >
+          <ThemedText variant="body" style={{ color: '#fff', fontWeight: '700' }}>
+            {isPending ? 'Saving…' : 'Save Roles'}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ── FormField helper ──────────────────────────────────────────
+function FormField({ label, colors, ...props }: any) {
+  return (
+    <View style={{ gap: 4, marginBottom: Spacing.sm }}>
+      <ThemedText variant="label" color="muted">{label}</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]}
+        placeholderTextColor={colors.textMuted}
+        {...props}
+      />
+    </View>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base, paddingVertical: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   filterRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1.5,
-  },
-  list: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, paddingBottom: 40 },
+  chip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1.5 },
+  list: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, paddingBottom: 120 },
   staffRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.base,
-    marginBottom: Spacing.sm,
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: Spacing.md,
+    flexDirection: 'row', alignItems: 'center', padding: Spacing.base,
+    marginBottom: Spacing.sm, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: Spacing.md,
   },
   roleChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
-  roleChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
+  roleChip: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  noLoginBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1 },
+  skeletonRow: { flexDirection: 'row', alignItems: 'center' },
   detailRow: { flexDirection: 'row', alignItems: 'center' },
   toggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
-    marginTop: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: Spacing.md, borderRadius: Radius.lg, borderWidth: 1.5, marginTop: Spacing.sm,
+  },
+  authCard: {
+    flexDirection: 'row', alignItems: 'center', padding: Spacing.base,
+    borderRadius: Radius.lg, borderWidth: 1,
+  },
+  inviteBtn: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: Radius.md },
+  form: { gap: 2, paddingBottom: Spacing.xl },
+  input: {
+    borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md,
+    paddingVertical: 12, fontSize: 15,
+  },
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  roleToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: Spacing.md, paddingVertical: 8,
+    borderRadius: Radius.md, borderWidth: 1.5,
+  },
+  errorBox: { padding: Spacing.md, borderRadius: Radius.md, marginTop: Spacing.sm },
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: Spacing.base, borderRadius: Radius.lg, marginTop: Spacing.base,
+  },
+  cancelBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: Spacing.base, borderRadius: Radius.lg, borderWidth: 1,
   },
 });

@@ -5,7 +5,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ── Schools ──────────────────────────────────────────────────
-CREATE TABLE schools (
+CREATE TABLE IF NOT EXISTS schools (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name             TEXT NOT NULL,
   code             TEXT UNIQUE NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE schools (
 );
 
 -- ── Per-school key-value config ───────────────────────────────
-CREATE TABLE school_configs (
+CREATE TABLE IF NOT EXISTS school_configs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   config_key  TEXT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE school_configs (
 );
 
 -- ── App versions (platform-level, no school_id needed) ────────
-CREATE TABLE app_versions (
+CREATE TABLE IF NOT EXISTS app_versions (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   min_version      TEXT NOT NULL DEFAULT '1.0.0',
   current_version  TEXT NOT NULL DEFAULT '1.0.0',
@@ -80,14 +80,16 @@ ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE school_configs ENABLE ROW LEVEL SECURITY;
 
 -- School row: user sees only their school
+DROP POLICY IF EXISTS "school_read_own" ON schools;
 CREATE POLICY "school_read_own" ON schools FOR SELECT TO authenticated
   USING (id = (auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
 -- Platform admins bypass via service_role (no policy needed for service_role)
 
+DROP POLICY IF EXISTS "school_config_isolation" ON school_configs;
 CREATE POLICY "school_config_isolation" ON school_configs FOR ALL TO authenticated
   USING (school_id = (auth.jwt()->'app_metadata'->>'school_id')::uuid);
 
 -- ── Indexes ───────────────────────────────────────────────────
-CREATE INDEX idx_school_configs_school ON school_configs(school_id);
-CREATE UNIQUE INDEX idx_schools_code ON schools(code);
+CREATE INDEX IF NOT EXISTS idx_school_configs_school ON school_configs(school_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_code ON schools(code);

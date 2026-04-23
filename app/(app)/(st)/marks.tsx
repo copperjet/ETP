@@ -62,7 +62,7 @@ function useMarksData(assignment: any | null, schoolId: string) {
         supabase.from('students').select('id, full_name, student_number, photo_url')
           .eq('school_id', schoolId).eq('stream_id', assignment.stream_id)
           .eq('status', 'active').order('full_name'),
-        supabase.from('marks').select('id, student_id, assessment_type, value, is_na')
+        supabase.from('marks').select('id, student_id, assessment_type, value, is_excused')
           .eq('school_id', schoolId).eq('subject_id', assignment.subject_id)
           .eq('stream_id', assignment.stream_id).eq('semester_id', assignment.semester_id),
       ]);
@@ -109,9 +109,9 @@ export default function STMarksScreen() {
         semester_id: selectedAssignment.semester_id,
         assessment_type: type,
         value: num,
-        is_na: false,
+        is_excused: false,
         entered_by: user?.staffId,
-      } as any, { onConflict: 'student_id,subject_id,stream_id,semester_id,assessment_type' });
+      } as any, { onConflict: 'student_id,subject_id,semester_id,assessment_type' });
     },
     onSuccess: () => {
       haptics.selection();
