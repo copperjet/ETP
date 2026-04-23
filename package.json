@@ -1,7 +1,7 @@
 {
   "name": "educore",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -35,8 +35,7 @@
     "react": "19.2.5",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "^2.31.1",
-    "react-native-pdf": "^7.0.4",
-    "react-native-reanimated": "^4.3.0",
+    "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
     "react-native-svg": "^15.15.4",
