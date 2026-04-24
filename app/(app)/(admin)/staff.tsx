@@ -162,9 +162,8 @@ export default function AdminStaffScreen() {
   const toggleStatus = useMutation({
     mutationFn: async ({ staffId, currentStatus }: { staffId: string; currentStatus: string }) => {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      const { error } = await supabase
-        .from('staff')
-        .update({ status: newStatus } as any)
+      const { error } = await (supabase.from('staff') as any)
+        .update({ status: newStatus })
         .eq('id', staffId)
         .eq('school_id', schoolId);
       if (error) throw error;
@@ -369,10 +368,10 @@ export default function AdminStaffScreen() {
       >
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.form}>
-            <FormField label="Full Name *" value={form.full_name} onChangeText={v => setForm(p => ({ ...p, full_name: v }))} placeholder="e.g. Joyce Kamau" colors={colors} />
-            <FormField label="Email *" value={form.email} onChangeText={v => setForm(p => ({ ...p, email: v }))} placeholder="e.g. jkamau@school.edu" keyboardType="email-address" autoCapitalize="none" colors={colors} />
-            <FormField label="Department" value={form.department} onChangeText={v => setForm(p => ({ ...p, department: v }))} placeholder="e.g. English" colors={colors} />
-            <FormField label="Phone" value={form.phone} onChangeText={v => setForm(p => ({ ...p, phone: v }))} placeholder="+260 97…" keyboardType="phone-pad" colors={colors} />
+            <FormField label="Full Name *" value={form.full_name} onChangeText={(v: string) => setForm(p => ({ ...p, full_name: v }))} placeholder="e.g. Joyce Kamau" colors={colors} />
+            <FormField label="Email *" value={form.email} onChangeText={(v: string) => setForm(p => ({ ...p, email: v }))} placeholder="e.g. jkamau@school.edu" keyboardType="email-address" autoCapitalize="none" colors={colors} />
+            <FormField label="Department" value={form.department} onChangeText={(v: string) => setForm(p => ({ ...p, department: v }))} placeholder="e.g. English" colors={colors} />
+            <FormField label="Phone" value={form.phone} onChangeText={(v: string) => setForm(p => ({ ...p, phone: v }))} placeholder="+260 97…" keyboardType="phone-pad" colors={colors} />
 
             <ThemedText variant="label" color="muted" style={{ marginBottom: Spacing.sm, marginTop: Spacing.sm }}>
               ROLES (select at least one)

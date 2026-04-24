@@ -18,6 +18,10 @@ export default function STLayout() {
       <Tabs.Screen name="marks" options={{ title: 'Marks', tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="students" options={{ title: 'Students', tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color, size }) => <Ionicons name="ellipsis-horizontal-outline" size={size} color={color} /> }} />
+      {/* Hidden stack screens */}
+      <Tabs.Screen name="marks-entry"  options={{ href: null }} />
+      <Tabs.Screen name="marks-import" options={{ href: null }} />
+      <Tabs.Screen name="daybook"      options={{ href: null }} />
     </Tabs>
   );
 }

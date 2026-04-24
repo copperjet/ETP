@@ -44,8 +44,19 @@ export default function AdminMore() {
     {
       title: 'Management',
       items: [
-        { icon: 'document-text-outline', label: 'Reports Approval', sublabel: 'Pending & released reports', onPress: () => router.push('/(app)/(admin)/reports' as any) },
-        { icon: 'people-outline',        label: 'Manage Staff',      sublabel: 'View, search, toggle status',  onPress: () => router.push('/(app)/(admin)/staff' as any) },
+        { icon: 'checkbox-outline',       label: 'Attendance Overview',  sublabel: "Today's submission status",         onPress: () => router.push('/(app)/(admin)/attendance-overview' as any) },
+        { icon: 'grid-outline',           label: 'Marks Matrix',         sublabel: 'Completion overview by class',      onPress: () => router.push('/(app)/(admin)/marks-matrix' as any) },
+        { icon: 'document-text-outline', label: 'Reports Approval',     sublabel: 'Pending & released reports',        onPress: () => router.push('/(app)/(admin)/reports' as any) },
+        { icon: 'people-outline',        label: 'Manage Staff',         sublabel: 'View, add, assign roles',         onPress: () => router.push('/(app)/(admin)/staff' as any) },
+        { icon: 'people-circle-outline', label: 'Manage Parents',       sublabel: 'Add parents, link to students',   onPress: () => router.push('/(app)/(admin)/parents' as any) },
+        { icon: 'git-branch-outline',    label: 'HRT / ST Assignments', sublabel: 'Assign class teachers & subjects',onPress: () => router.push('/(app)/(admin)/assignments' as any) },
+        { icon: 'book-outline',          label: 'Day Book',             sublabel: 'School-wide student notes',       onPress: () => router.push('/(app)/(admin)/daybook' as any) },
+        { icon: 'calendar-outline',      label: 'Academic Calendar',    sublabel: 'Events, holidays & exam periods',  onPress: () => router.push('/(app)/(admin)/calendar' as any) },
+        { icon: 'notifications-outline', label: 'Notification Log',     sublabel: 'All push & in-app notifications', onPress: () => router.push('/(app)/(admin)/notification-log' as any) },
+        { icon: 'shield-checkmark-outline', label: 'Audit Log',         sublabel: 'Filterable action history',        onPress: () => router.push('/(app)/(admin)/audit-log' as any) },
+        { icon: 'create-outline',          label: 'Marks Windows',      sublabel: 'Open / close entry windows',       onPress: () => router.push('/(app)/(admin)/marks-windows' as any) },
+        { icon: 'calendar-number-outline', label: 'Semesters',          sublabel: 'Manage & activate semesters',      onPress: () => router.push('/(app)/(admin)/semesters' as any) },
+        { icon: 'arrow-up-circle-outline', label: 'Promotion Wizard',   sublabel: 'Year-end promote / graduate',      onPress: () => router.push('/(app)/(admin)/promotion-wizard' as any) },
       ],
     },
     {

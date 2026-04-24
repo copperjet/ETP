@@ -16,6 +16,8 @@ export default function FrontDeskLayout() {
       <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="inquiries" options={{ title: 'Inquiries', tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color, size }) => <Ionicons name="ellipsis-horizontal-outline" size={size} color={color} /> }} />
+      {/* Hidden stack screens */}
+      <Tabs.Screen name="inquiry-detail" options={{ href: null }} />
     </Tabs>
   );
 }

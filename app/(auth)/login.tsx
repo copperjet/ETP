@@ -132,7 +132,7 @@ export default function LoginScreen() {
 
           <ThemedText variant="h2" style={styles.heading}>Welcome back</ThemedText>
           <ThemedText variant="body" color="muted" style={styles.subheading}>
-            Sign in to your ETP School account
+            Sign in to your Scholr account
           </ThemedText>
 
           <View style={styles.form}>

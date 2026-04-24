@@ -44,8 +44,10 @@ export default function STMore() {
     {
       title: 'Teaching',
       items: [
-        { icon: 'bar-chart-outline',  label: 'Enter Marks',  sublabel: 'FA1, FA2, Summative', onPress: () => router.push('/(app)/(st)/marks' as any) },
-        { icon: 'people-outline',     label: 'My Students',  sublabel: 'View student list',   onPress: () => router.push('/(app)/(st)/students' as any) },
+        { icon: 'bar-chart-outline',  label: 'Enter Marks',     sublabel: 'FA1, FA2, Summative',   onPress: () => router.push('/(app)/(st)/marks' as any) },
+        { icon: 'cloud-upload-outline', label: 'Import Marks',  sublabel: 'Bulk CSV import',        onPress: () => router.push('/(app)/(st)/marks-import' as any) },
+        { icon: 'people-outline',     label: 'My Students',     sublabel: 'View student list',       onPress: () => router.push('/(app)/(st)/students' as any) },
+        { icon: 'book-outline',       label: 'Day Book',        sublabel: 'Student notes',            onPress: () => router.push('/(app)/(st)/daybook' as any) },
       ],
     },
     {

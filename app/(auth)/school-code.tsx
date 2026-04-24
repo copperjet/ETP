@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -94,19 +95,14 @@ export default function SchoolCodeScreen() {
           ]}
           pointerEvents="none"
         >
-          <View style={[styles.logoMark, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <ThemedText style={styles.logoText}>E</ThemedText>
-          </View>
+          <Image source={require('../../assets/scholr-logo.png')} style={styles.overlayLogo} resizeMode="contain" />
           <ThemedText variant="h3" style={{ color: '#fff', textAlign: 'center' }}>{foundSchool.name}</ThemedText>
         </Animated.View>
       )}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kav}>
         <View style={styles.container}>
           <View style={styles.logoArea}>
-            <View style={[styles.logoMark, { backgroundColor: colors.brand.primary }]}>
-              <ThemedText style={styles.logoText}>ETP</ThemedText>
-            </View>
-            <ThemedText variant="h1" style={styles.appName}>ETP School</ThemedText>
+            <Image source={require('../../assets/scholr-main-logo.png')} style={styles.mainLogo} resizeMode="contain" />
             <ThemedText variant="body" color="muted" style={styles.tagline}>
               School Management, Reimagined
             </ThemedText>
@@ -153,7 +149,7 @@ export default function SchoolCodeScreen() {
           </Animated.View>
 
           <ThemedText variant="caption" color="muted" style={styles.footer}>
-            ETP School · Education, Technology & People
+            Scholr · School Management, Reimagined
           </ThemedText>
         </View>
       </KeyboardAvoidingView>
@@ -173,22 +169,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing['3xl'],
   },
-  logoMark: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.base,
+  mainLogo: {
+    width: 200,
+    height: 67,
+    marginBottom: Spacing.md,
   },
-  logoText: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: '#fff',
-    lineHeight: 48,
-  },
-  appName: {
-    marginBottom: Spacing.xs,
+  overlayLogo: {
+    width: 80,
+    height: 80,
+    tintColor: '#fff',
   },
   tagline: {
     textAlign: 'center',

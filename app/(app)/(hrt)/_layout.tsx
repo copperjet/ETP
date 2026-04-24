@@ -80,6 +80,9 @@ export default function HRTLayout() {
           tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'grid' : 'grid-outline'} focused={focused} label="More" />,
         }}
       />
+      {/* Hidden stack screens — not shown in tab bar */}
+      <Tabs.Screen name="attendance-history" options={{ href: null }} />
+      <Tabs.Screen name="reports-approve"    options={{ href: null }} />
     </Tabs>
   );
 }

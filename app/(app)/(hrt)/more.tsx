@@ -44,9 +44,10 @@ export default function MoreScreen() {
     {
       title: 'Class',
       items: [
-        { icon: 'document-text-outline', label: 'Report Cards', sublabel: 'View & release reports', onPress: () => router.push('/(app)/(hrt)/reports' as any) },
-        { icon: 'book-outline', label: 'Day Book', sublabel: 'Student daily notes', onPress: () => router.push('/(app)/(hrt)/daybook' as any) },
-        { icon: 'person-add-outline', label: 'CREED Ratings', sublabel: 'Character assessments', onPress: () => router.push('/(app)/(hrt)/creed' as any) },
+        { icon: 'time-outline',          label: 'Attendance History',  sublabel: 'Past registers & stats',    onPress: () => router.push('/(app)/(hrt)/attendance-history' as any) },
+        { icon: 'document-text-outline', label: 'Report Cards',        sublabel: 'View & release reports',   onPress: () => router.push('/(app)/(hrt)/reports' as any) },
+        { icon: 'book-outline',          label: 'Day Book',            sublabel: 'Student daily notes',      onPress: () => router.push('/(app)/(hrt)/daybook' as any) },
+        { icon: 'person-add-outline',    label: 'CREED Ratings',       sublabel: 'Character assessments',    onPress: () => router.push('/(app)/(hrt)/creed' as any) },
       ],
     },
     {

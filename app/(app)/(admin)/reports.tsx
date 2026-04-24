@@ -1,125 +1,100 @@
 /**
- * Admin Reports — /(app)/(admin)/reports
- * Admin approves pending reports + releases after finance clearance
- * Pipeline: pending_approval → approved → (finance_pending) → released
+ * Admin Reports Overview
+ * School-wide view: pipeline counts + per-report list.
+ * Approve pending + bulk release approved reports.
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   SafeAreaView,
   FlatList,
   TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
-import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Avatar, Badge, BottomSheet,
-  SkeletonRow, EmptyState, ErrorState,
+  ThemedText, Avatar, Badge, BottomSheet, Skeleton, EmptyState, ErrorState,
 } from '../../../components/ui';
+import {
+  useAdminReports, useAdminReportCounts, useAdminApproveReport, useReleaseReports,
+  STATUS_META, type ReportStatus, type ReportSummary,
+} from '../../../hooks/useReports';
+import { ReportStatusPipeline } from '../../../components/modules/ReportStatusPipeline';
 import { Spacing, Radius } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
 
-const FILTER_TABS = ['pending_approval', 'approved', 'finance_pending', 'released'] as const;
-const TAB_LABELS: Record<string, string> = {
+const FILTER_TABS: Array<ReportStatus | 'all'> = ['all', 'pending_approval', 'approved', 'finance_pending', 'released'];
+const FILTER_LABELS: Record<string, string> = {
+  all: 'All',
   pending_approval: 'Pending',
   approved: 'Approved',
   finance_pending: 'Finance',
   released: 'Released',
 };
-const STATUS_META: Record<string, { preset: any }> = {
-  pending_approval: { preset: 'warning' },
-  approved:         { preset: 'info' },
-  finance_pending:  { preset: 'warning' },
-  released:         { preset: 'success' },
-};
-
-function useAdminReports(schoolId: string, status: string) {
-  return useQuery({
-    queryKey: ['admin-reports', schoolId, status],
-    enabled: !!schoolId,
-    staleTime: 1000 * 60,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('reports')
-        .select(`
-          id, status, hrt_comment, overall_percentage, class_position, updated_at, pdf_url,
-          students ( id, full_name, student_number, photo_url ),
-          semesters ( name )
-        `)
-        .eq('school_id', schoolId)
-        .eq('status', status)
-        .order('updated_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-}
 
 export default function AdminReportsScreen() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
-  const queryClient = useQueryClient();
   const schoolId = user?.schoolId ?? '';
 
-  const [activeTab, setActiveTab] = useState<string>('pending_approval');
-  const [selectedReport, setSelectedReport] = useState<any | null>(null);
-  const [sheetVisible, setSheetVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<ReportStatus | 'all'>('pending_approval');
+  const [sheetReport, setSheetReport] = useState<ReportSummary | null>(null);
 
-  const { data, isLoading, isError, refetch } = useAdminReports(schoolId, activeTab);
+  const { data: reports = [], isLoading, isError, refetch } = useAdminReports(schoolId, activeTab);
+  const { data: counts = {} as Partial<Record<ReportStatus, number>> } = useAdminReportCounts(schoolId);
+  const approveMutation = useAdminApproveReport(schoolId);
+  const releaseMutation = useReleaseReports(schoolId);
 
-  const approveReport = useMutation({
-    mutationFn: async (reportId: string) => {
-      const { error } = await (supabase as any)
-        .from('reports')
-        .update({
-          status: 'approved',
-          approved_by: user?.staffId,
-          approved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', reportId)
-        .eq('school_id', schoolId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
+  const handleApprove = useCallback(async (report: ReportSummary) => {
+    haptics.medium();
+    try {
+      await approveMutation.mutateAsync({ reportId: report.id, staffId: user!.staffId! });
       haptics.success();
-      queryClient.invalidateQueries({ queryKey: ['admin-reports'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      setSheetVisible(false);
-    },
-    onError: () => haptics.error(),
-  });
+      setSheetReport(null);
+    } catch {
+      haptics.error();
+      Alert.alert('Error', 'Could not approve. Try again.');
+    }
+  }, [approveMutation, user]);
 
-  const releaseReport = useMutation({
-    mutationFn: async (reportId: string) => {
-      const { error } = await (supabase as any)
-        .from('reports')
-        .update({
-          status: 'released',
-          released_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', reportId)
-        .eq('school_id', schoolId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      haptics.success();
-      queryClient.invalidateQueries({ queryKey: ['admin-reports'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      setSheetVisible(false);
-    },
-    onError: () => haptics.error(),
-  });
+  const handleBulkRelease = useCallback(async () => {
+    const approvedReports = (reports as ReportSummary[]).filter(
+      (r) => r.status === 'approved' || r.status === 'finance_pending',
+    );
+    if (approvedReports.length === 0) return;
+    const semesterId = approvedReports[0].semester?.id;
+    if (!semesterId) return;
+
+    Alert.alert(
+      'Bulk Release',
+      `Release ${approvedReports.length} approved report${approvedReports.length !== 1 ? 's' : ''} to parents?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Release',
+          onPress: async () => {
+            haptics.medium();
+            try {
+              await releaseMutation.mutateAsync({
+                student_ids: approvedReports.map((r) => r.student.id),
+                semester_id: semesterId,
+              });
+              haptics.success();
+              Alert.alert('Released', `${approvedReports.length} reports sent to parents.`);
+            } catch {
+              haptics.error();
+              Alert.alert('Error', 'Could not release reports. Try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [reports, releaseMutation]);
 
   if (isError) {
     return (
@@ -129,7 +104,7 @@ export default function AdminReportsScreen() {
     );
   }
 
-  const reports = data ?? [];
+  const approvedCount = (counts['approved'] ?? 0) + (counts['finance_pending'] ?? 0);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -138,20 +113,44 @@ export default function AdminReportsScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
-        <ThemedText variant="h4">Reports</ThemedText>
-        <View style={{ width: 36 }} />
+        <ThemedText variant="h4" style={{ flex: 1, textAlign: 'center' }}>Reports</ThemedText>
+        {approvedCount > 0 && (
+          <TouchableOpacity
+            onPress={handleBulkRelease}
+            disabled={releaseMutation.isPending}
+            style={[styles.releaseBtn, { backgroundColor: colors.brand.primary }]}
+          >
+            <Ionicons name="send" size={13} color="#fff" />
+            <ThemedText variant="label" style={{ color: '#fff', marginLeft: 4, fontSize: 11 }}>
+              RELEASE {approvedCount}
+            </ThemedText>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Status filter tabs */}
+      {/* Pipeline */}
+      <ReportStatusPipeline counts={counts} financeGateEnabled={false} />
+
+      {/* Filter tabs */}
       <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
-        {FILTER_TABS.map(tab => (
+        {FILTER_TABS.map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
-            style={[styles.tab, activeTab === tab && { borderBottomColor: colors.brand.primary, borderBottomWidth: 2 }]}
+            style={[
+              styles.tab,
+              activeTab === tab && { borderBottomColor: colors.brand.primary, borderBottomWidth: 2 },
+            ]}
           >
-            <ThemedText variant="bodySm" style={{ fontWeight: activeTab === tab ? '700' : '500', color: activeTab === tab ? colors.brand.primary : colors.textMuted }}>
-              {TAB_LABELS[tab]}
+            <ThemedText
+              variant="caption"
+              style={{
+                fontWeight: activeTab === tab ? '700' : '500',
+                color: activeTab === tab ? colors.brand.primary : colors.textMuted,
+                fontSize: 11,
+              }}
+            >
+              {FILTER_LABELS[tab]}{counts[tab as ReportStatus] ? ` (${counts[tab as ReportStatus]})` : ''}
             </ThemedText>
           </TouchableOpacity>
         ))}
@@ -159,38 +158,46 @@ export default function AdminReportsScreen() {
 
       {isLoading ? (
         <View style={{ padding: Spacing.base, gap: Spacing.sm }}>
-          {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
+          {Array.from({ length: 5 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={40} height={40} radius={20} />
+              <View style={{ flex: 1, marginLeft: 12, gap: 6 }}>
+                <Skeleton width="50%" height={14} />
+                <Skeleton width="30%" height={11} />
+              </View>
+              <Skeleton width={70} height={24} radius={Radius.full} />
+            </View>
+          ))}
         </View>
       ) : reports.length === 0 ? (
         <EmptyState
-          title={`No ${TAB_LABELS[activeTab].toLowerCase()} reports`}
-          description={activeTab === 'pending_approval' ? 'All reports have been reviewed.' : 'No reports in this status.'}
+          title={`No ${FILTER_LABELS[activeTab]?.toLowerCase() ?? ''} reports`}
+          description="No reports in this status."
         />
       ) : (
         <FlatList
           data={reports}
-          keyExtractor={r => r.id}
+          keyExtractor={(r) => r.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           renderItem={({ item: report }) => {
-            const student = report.students;
+            const meta = STATUS_META[report.status] ?? STATUS_META.draft;
             return (
               <TouchableOpacity
-                onPress={() => { setSelectedReport(report); setSheetVisible(true); }}
+                onPress={() => { haptics.selection(); setSheetReport(report); }}
                 activeOpacity={0.8}
                 style={[styles.reportRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <Avatar name={student?.full_name ?? '?'} photoUrl={student?.photo_url} size={40} />
-                <View style={{ flex: 1 }}>
-                  <ThemedText variant="body" style={{ fontWeight: '600' }}>{student?.full_name ?? '—'}</ThemedText>
-                  <ThemedText variant="caption" color="muted">{report.semesters?.name ?? ''}</ThemedText>
-                  {report.overall_percentage != null && (
-                    <ThemedText variant="caption" color="muted">
-                      {report.overall_percentage.toFixed(1)}%{report.class_position ? ` · #${report.class_position}` : ''}
-                    </ThemedText>
-                  )}
+                <Avatar name={report.student.full_name} photoUrl={report.student.photo_url} size={40} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <ThemedText variant="body" style={{ fontWeight: '600' }}>{report.student.full_name}</ThemedText>
+                  <ThemedText variant="caption" color="muted">
+                    {report.semester?.name ?? '—'}
+                    {report.overall_percentage !== null ? ` · ${report.overall_percentage.toFixed(1)}%` : ''}
+                    {report.class_position ? ` · #${report.class_position}` : ''}
+                  </ThemedText>
                 </View>
-                <Badge label={TAB_LABELS[report.status] ?? report.status} preset={STATUS_META[report.status]?.preset ?? 'neutral'} />
+                <Badge label={meta.label} preset={meta.preset} />
               </TouchableOpacity>
             );
           }}
@@ -199,77 +206,100 @@ export default function AdminReportsScreen() {
 
       {/* Report action sheet */}
       <BottomSheet
-        visible={sheetVisible && !!selectedReport}
-        onClose={() => setSheetVisible(false)}
-        title={selectedReport?.students?.full_name ?? 'Report'}
-        snapHeight={440}
+        visible={!!sheetReport}
+        onClose={() => setSheetReport(null)}
+        title={sheetReport?.student.full_name ?? 'Report'}
+        snapHeight={420}
       >
-        {selectedReport && (
+        {sheetReport && (
           <View style={{ gap: Spacing.base }}>
-            {/* Stats */}
             <View style={[styles.statRow, { backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md }]}>
               <View style={styles.statItem}>
                 <ThemedText variant="h3" style={{ color: colors.brand.primary }}>
-                  {selectedReport.overall_percentage != null ? `${selectedReport.overall_percentage.toFixed(1)}%` : '—'}
+                  {sheetReport.overall_percentage !== null
+                    ? `${sheetReport.overall_percentage.toFixed(1)}%`
+                    : '—'}
                 </ThemedText>
                 <ThemedText variant="caption" color="muted">Average</ThemedText>
               </View>
-              <View style={[styles.statItem, { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border }]}>
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.statItem}>
                 <ThemedText variant="h3" style={{ color: colors.brand.primary }}>
-                  {selectedReport.class_position != null ? `#${selectedReport.class_position}` : '—'}
+                  {sheetReport.class_position !== null ? `#${sheetReport.class_position}` : '—'}
                 </ThemedText>
                 <ThemedText variant="caption" color="muted">Position</ThemedText>
               </View>
             </View>
 
-            {/* HRT Comment */}
-            {selectedReport.hrt_comment ? (
+            {sheetReport.hrt_comment ? (
               <View style={[styles.commentBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                <ThemedText variant="label" color="muted" style={{ marginBottom: 4 }}>HRT COMMENT</ThemedText>
-                <ThemedText variant="bodySm">{selectedReport.hrt_comment}</ThemedText>
+                <ThemedText variant="label" color="muted" style={{ marginBottom: 4, fontSize: 10 }}>HRT COMMENT</ThemedText>
+                <ThemedText variant="bodySm">{sheetReport.hrt_comment}</ThemedText>
               </View>
             ) : (
               <View style={[styles.commentBox, { backgroundColor: Colors.semantic.warningLight, borderColor: Colors.semantic.warning + '40' }]}>
-                <ThemedText variant="bodySm" style={{ color: Colors.semantic.warning }}>⚠ No HRT comment added</ThemedText>
+                <ThemedText variant="bodySm" style={{ color: Colors.semantic.warning }}>⚠ No HRT comment</ThemedText>
               </View>
             )}
 
-            {/* Action buttons */}
             <View style={{ gap: Spacing.sm }}>
-              {selectedReport.status === 'pending_approval' && (
+              {sheetReport.status === 'pending_approval' && (
                 <TouchableOpacity
-                  onPress={() => approveReport.mutate(selectedReport.id)}
-                  disabled={approveReport.isPending}
+                  onPress={() => handleApprove(sheetReport)}
+                  disabled={approveMutation.isPending}
                   style={[styles.actionBtn, { backgroundColor: Colors.semantic.success }]}
                 >
                   <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
                   <ThemedText variant="body" style={{ color: '#fff', fontWeight: '700', marginLeft: 8 }}>
-                    {approveReport.isPending ? 'Approving…' : 'Approve Report'}
+                    {approveMutation.isPending ? 'Approving…' : 'Approve Report'}
                   </ThemedText>
                 </TouchableOpacity>
               )}
-              {(selectedReport.status === 'approved' || selectedReport.status === 'finance_pending') && (
+              {(sheetReport.status === 'approved' || sheetReport.status === 'finance_pending') && (
                 <TouchableOpacity
-                  onPress={() => releaseReport.mutate(selectedReport.id)}
-                  disabled={releaseReport.isPending}
+                  onPress={async () => {
+                    if (!sheetReport.semester?.id) return;
+                    haptics.medium();
+                    try {
+                      await releaseMutation.mutateAsync({
+                        student_ids: [sheetReport.student.id],
+                        semester_id: sheetReport.semester.id,
+                      });
+                      haptics.success();
+                      setSheetReport(null);
+                    } catch {
+                      haptics.error();
+                    }
+                  }}
+                  disabled={releaseMutation.isPending}
                   style={[styles.actionBtn, { backgroundColor: colors.brand.primary }]}
                 >
                   <Ionicons name="send-outline" size={18} color="#fff" />
                   <ThemedText variant="body" style={{ color: '#fff', fontWeight: '700', marginLeft: 8 }}>
-                    {releaseReport.isPending ? 'Releasing…' : 'Release to Parent'}
+                    {releaseMutation.isPending ? 'Releasing…' : 'Release to Parent'}
                   </ThemedText>
                 </TouchableOpacity>
               )}
-              {selectedReport.pdf_url && (
+              {sheetReport.pdf_url && (
                 <TouchableOpacity
                   onPress={() => {
-                    setSheetVisible(false);
-                    router.push({ pathname: '/(app)/report-viewer' as any, params: { report_id: selectedReport.id, pdf_url: selectedReport.pdf_url, student_name: selectedReport.students?.full_name ?? '', is_draft: selectedReport.status !== 'released' ? 'true' : 'false' } });
+                    setSheetReport(null);
+                    router.push({
+                      pathname: '/(app)/report-viewer' as any,
+                      params: {
+                        report_id: sheetReport.id,
+                        pdf_url: sheetReport.pdf_url!,
+                        student_name: sheetReport.student.full_name,
+                        is_draft: sheetReport.status !== 'released' ? 'true' : 'false',
+                      },
+                    });
                   }}
                   style={[styles.outlineBtn, { borderColor: colors.brand.primary }]}
                 >
                   <Ionicons name="document-text-outline" size={18} color={colors.brand.primary} />
-                  <ThemedText variant="body" style={{ color: colors.brand.primary, fontWeight: '600', marginLeft: 6 }}>View PDF</ThemedText>
+                  <ThemedText variant="body" style={{ color: colors.brand.primary, fontWeight: '600', marginLeft: 6 }}>
+                    View PDF
+                  </ThemedText>
                 </TouchableOpacity>
               )}
             </View>
@@ -285,22 +315,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.sm,
   },
-  tabBar: {
+  releaseBtn: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
   },
+  tabBar: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
+  skeletonRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   list: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, paddingBottom: 40 },
   reportRow: {
     flexDirection: 'row',
@@ -309,18 +344,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    gap: Spacing.md,
   },
-  statRow: {
-    flexDirection: 'row',
-    padding: Spacing.base,
-  },
+  statRow: { flexDirection: 'row', padding: Spacing.base },
   statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  commentBox: {
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  statDivider: { width: StyleSheet.hairlineWidth, marginVertical: 4 },
+  commentBox: { padding: Spacing.md, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',

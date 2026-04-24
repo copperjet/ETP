@@ -1,7 +1,8 @@
 /**
- * CREED Entry — /(app)/(hrt)/creed
- * HRT enters character ratings (Creativity, Respect, Excellence, Empathy, Discipline)
- * per student for the current semester. Rating: E / G / S / NI (Excellent/Good/Satisfactory/NeedsImprovement)
+ * CREED Entry — HRT view
+ * Grid: students as rows, 5 traits as columns.
+ * Tap any cell → BottomSheet with rating options (Cambridge or Developmental).
+ * Locked after report approval.
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import {
@@ -10,136 +11,162 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
-import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Avatar, BottomSheet, FAB,
-  Skeleton, EmptyState, ErrorState,
+  ThemedText, Avatar, BottomSheet, FAB, Skeleton, EmptyState, ErrorState,
 } from '../../../components/ui';
+import {
+  CREED_TRAITS, CAMBRIDGE_RATINGS, DEVELOPMENTAL_RATINGS,
+  useCharacterFramework, useCreedForStream, useUpdateCreed,
+  type TraitKey,
+} from '../../../hooks/useCreed';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../../lib/supabase';
 import { Spacing, Radius } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
 
-const TRAITS = [
-  { key: 'creativity', label: 'Creativity' },
-  { key: 'respect', label: 'Respect' },
-  { key: 'excellence', label: 'Excellence' },
-  { key: 'empathy', label: 'Empathy' },
-  { key: 'discipline', label: 'Discipline' },
-] as const;
+// Color map for Cambridge grades
+const CAMBRIDGE_COLORS: Record<string, string> = {
+  'A*': Colors.semantic.success,
+  'A':  Colors.semantic.success,
+  'B':  '#22C55E',
+  'C':  Colors.semantic.info,
+  'D':  Colors.semantic.warning,
+  'E':  '#FB923C',
+  'F':  Colors.semantic.error,
+  'G':  Colors.semantic.error,
+  'U':  '#6B7280',
+};
 
-type TraitKey = typeof TRAITS[number]['key'];
+const DEV_COLORS: Record<string, string> = {
+  'Exceeding':   Colors.semantic.success,
+  'Secure':      Colors.semantic.info,
+  'Developing':  Colors.semantic.warning,
+  'Emerging':    Colors.semantic.error,
+};
 
-const RATINGS = [
-  { value: 'E', label: 'Excellent', color: Colors.semantic.success },
-  { value: 'G', label: 'Good', color: Colors.semantic.info },
-  { value: 'S', label: 'Satisfactory', color: Colors.semantic.warning },
-  { value: 'NI', label: 'Needs Improvement', color: Colors.semantic.error },
-] as const;
+function getRatingColor(value: string | null | undefined): string {
+  if (!value) return '#9CA3AF';
+  return CAMBRIDGE_COLORS[value] ?? DEV_COLORS[value] ?? '#9CA3AF';
+}
 
-type RatingValue = typeof RATINGS[number]['value'];
-
-function useCREEDData(staffId: string | null, schoolId: string) {
+function useHRTStream(staffId: string | null, schoolId: string) {
   return useQuery({
-    queryKey: ['creed-register', staffId, schoolId],
+    queryKey: ['hrt-stream-for-creed', staffId, schoolId],
     enabled: !!staffId && !!schoolId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10,
     queryFn: async () => {
-      const { data: assignment } = await supabase
+      const { data } = await supabase
         .from('hrt_assignments')
-        .select('stream_id, semester_id')
+        .select('stream_id, semester_id, streams ( name )')
         .eq('staff_id', staffId!)
         .eq('school_id', schoolId)
         .limit(1)
         .single();
-      if (!assignment) return { students: [], streamId: null, semesterId: null };
-      const { stream_id, semester_id } = assignment as any;
-
-      const [studentsRes, creedRes] = await Promise.all([
-        supabase.from('students').select('id, full_name, student_number, photo_url')
-          .eq('school_id', schoolId).eq('stream_id', stream_id)
-          .eq('status', 'active').order('full_name'),
-        supabase.from('character_records').select('student_id, creativity, respect, excellence, empathy, discipline, is_locked')
-          .eq('school_id', schoolId).eq('semester_id', semester_id),
-      ]);
-
-      const creedMap: Record<string, any> = {};
-      (creedRes.data ?? []).forEach((r: any) => { creedMap[r.student_id] = r; });
-
-      return {
-        students: (studentsRes.data ?? []) as any[],
-        creedMap,
-        streamId: stream_id,
-        semesterId: semester_id,
-      };
+      return data as any ?? null;
     },
   });
 }
 
-export default function CREEDScreen() {
-  const { colors } = useTheme();
+export default function CreedScreen() {
+  const { colors, scheme } = useTheme();
   const { user } = useAuthStore();
-  const queryClient = useQueryClient();
 
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const { data: hrtAssignment } = useHRTStream(user?.staffId ?? null, user?.schoolId ?? '');
+  const { data: framework } = useCharacterFramework(user?.schoolId ?? '');
+  const { data, isLoading, isError, refetch } = useCreedForStream(
+    hrtAssignment?.stream_id,
+    hrtAssignment?.semester_id,
+    user?.schoolId ?? '',
+  );
+  const updateCreed = useUpdateCreed(user?.schoolId ?? '');
+
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [selectedTrait, setSelectedTrait] = useState<TraitKey>('creativity');
-  const [localRatings, setLocalRatings] = useState<Record<string, Record<TraitKey, RatingValue>>>({});
+  const [sheetStudent, setSheetStudent] = useState<{ id: string; name: string } | null>(null);
+  const [sheetTrait, setSheetTrait] = useState<TraitKey>('creativity');
+  const [sheetCurrentVal, setSheetCurrentVal] = useState<string | null>(null);
+  const [localEdits, setLocalEdits] = useState<Record<string, Record<string, string>>>({});
 
-  const { data, isLoading, isError, refetch } = useCREEDData(user?.staffId ?? null, user?.schoolId ?? '');
+  const ratings: readonly string[] = framework?.rating_scale === 'developmental'
+    ? DEVELOPMENTAL_RATINGS
+    : CAMBRIDGE_RATINGS;
 
-  const saveMutation = useMutation({
-    mutationFn: async ({ studentId, ratings }: { studentId: string; ratings: Record<string, string> }) => {
-      await supabase.from('character_records').upsert({
-        school_id: user?.schoolId,
-        student_id: studentId,
-        semester_id: data?.semesterId,
-        entered_by: user?.staffId,
-        ...ratings,
-      } as any, { onConflict: 'student_id,semester_id' });
+  const getEffectiveValue = useCallback(
+    (studentId: string, trait: TraitKey): string | null => {
+      const local = localEdits[studentId]?.[trait];
+      if (local !== undefined) return local;
+      return data?.records?.[studentId]?.[trait] ?? null;
     },
-    onSuccess: () => {
-      haptics.success();
-      queryClient.invalidateQueries({ queryKey: ['creed-register'] });
+    [localEdits, data?.records],
+  );
+
+  const openSheet = useCallback(
+    (studentId: string, studentName: string, trait: TraitKey) => {
+      const record = data?.records?.[studentId];
+      if (record?.is_locked) { haptics.error(); return; }
+      haptics.selection();
+      setSheetStudent({ id: studentId, name: studentName });
+      setSheetTrait(trait);
+      setSheetCurrentVal(getEffectiveValue(studentId, trait));
+      setSheetVisible(true);
     },
-    onError: () => haptics.error(),
-  });
+    [data?.records, getEffectiveValue],
+  );
 
-  const getRating = useCallback((studentId: string, trait: TraitKey): RatingValue | null => {
-    return localRatings[studentId]?.[trait] ?? (data?.creedMap?.[studentId]?.[trait] ?? null);
-  }, [localRatings, data?.creedMap]);
+  const handleSelectRating = useCallback(
+    async (value: string) => {
+      if (!sheetStudent) return;
+      haptics.selection();
+      // Optimistic
+      setLocalEdits((prev) => ({
+        ...prev,
+        [sheetStudent.id]: { ...prev[sheetStudent.id], [sheetTrait]: value },
+      }));
+      setSheetVisible(false);
 
-  const setRating = useCallback((studentId: string, trait: TraitKey, value: RatingValue) => {
-    haptics.selection();
-    setLocalRatings(prev => ({
-      ...prev,
-      [studentId]: { ...(prev[studentId] ?? {}), [trait]: value },
-    }));
-  }, []);
+      const existingRecord = data?.records?.[sheetStudent.id];
+      try {
+        await updateCreed.mutateAsync({
+          studentId:  sheetStudent.id,
+          semesterId: hrtAssignment!.semester_id,
+          enteredBy:  user!.staffId!,
+          trait:      sheetTrait,
+          value,
+          existingId: existingRecord?.id,
+        });
+      } catch {
+        haptics.error();
+        // Revert optimistic
+        setLocalEdits((prev) => {
+          const next = { ...prev };
+          if (next[sheetStudent.id]) {
+            const copy = { ...next[sheetStudent.id] };
+            delete copy[sheetTrait];
+            next[sheetStudent.id] = copy;
+          }
+          return next;
+        });
+      }
+    },
+    [sheetStudent, sheetTrait, data?.records, hrtAssignment, user, updateCreed],
+  );
 
-  const saveStudent = useCallback((studentId: string) => {
-    const existing = data?.creedMap?.[studentId] ?? {};
-    const local = localRatings[studentId] ?? {};
-    const merged = { ...existing, ...local };
-    const ratings: Record<string, string> = {};
-    TRAITS.forEach(t => { if (merged[t.key]) ratings[t.key] = merged[t.key]; });
-    saveMutation.mutate({ studentId, ratings });
-    setSheetVisible(false);
-  }, [localRatings, data?.creedMap, saveMutation]);
+  const students = data?.students ?? [];
+  const traitLabels = (framework?.value_names?.length === 5
+    ? framework.value_names
+    : CREED_TRAITS.map((t) => t.label)) as string[];
 
   const completedCount = useMemo(() => {
-    return (data?.students ?? []).filter((s: any) => {
-      const local = localRatings[s.id] ?? {};
-      const saved = data?.creedMap?.[s.id] ?? {};
-      const merged = { ...saved, ...local };
-      return TRAITS.every(t => !!merged[t.key]);
-    }).length;
-  }, [data?.students, data?.creedMap, localRatings]);
+    return students.filter((s) =>
+      CREED_TRAITS.every((t) => !!getEffectiveValue(s.id, t.key)),
+    ).length;
+  }, [students, getEffectiveValue]);
 
   if (isError) {
     return (
@@ -148,9 +175,6 @@ export default function CREEDScreen() {
       </SafeAreaView>
     );
   }
-
-  const students = data?.students ?? [];
-  const total = students.length;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -161,110 +185,161 @@ export default function CREEDScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <ThemedText variant="h4">CREED Ratings</ThemedText>
-          <ThemedText variant="caption" color="muted">{completedCount} / {total} complete</ThemedText>
+          <ThemedText variant="caption" color="muted">
+            {hrtAssignment?.streams?.name ?? '—'} · {completedCount}/{students.length} complete
+          </ThemedText>
         </View>
         <View style={{ width: 36 }} />
       </View>
 
+      {/* Scale badge */}
+      <View style={[styles.scaleBadge, { backgroundColor: colors.surfaceSecondary, borderBottomColor: colors.border }]}>
+        <Ionicons name="ribbon-outline" size={13} color={colors.brand.primary} />
+        <ThemedText variant="caption" style={{ color: colors.brand.primary, marginLeft: 6 }}>
+          {framework?.rating_scale === 'developmental' ? 'Developmental scale' : 'Cambridge scale'} · Tap a cell to grade
+        </ThemedText>
+      </View>
+
       {isLoading ? (
-        <View style={{ padding: Spacing.base, gap: Spacing.md }}>
+        <View style={styles.skeletonList}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
-              <Skeleton width={42} height={42} radius={21} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <Skeleton width="55%" height={14} />
-                <Skeleton width="80%" height={10} />
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton width={36} height={36} radius={18} />
+              <View style={{ flex: 1, gap: 6, marginLeft: Spacing.md }}>
+                <Skeleton width="40%" height={13} />
               </View>
+              {Array.from({ length: 5 }).map((__, j) => (
+                <Skeleton key={j} width={36} height={28} radius={Radius.sm} style={{ marginLeft: 4 }} />
+              ))}
             </View>
           ))}
         </View>
-      ) : total === 0 ? (
-        <EmptyState title="No students" description="No active students in your class." />
+      ) : students.length === 0 ? (
+        <EmptyState
+          title="No students"
+          description="There are no active students in your class."
+        />
       ) : (
-        <FlatList
-          data={students}
-          keyExtractor={s => s.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item: student }) => {
-            const isComplete = TRAITS.every(t => !!getRating(student.id, t.key));
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+          {/* Column header row */}
+          <View style={[styles.headerRow, { backgroundColor: colors.surfaceSecondary, borderBottomColor: colors.border }]}>
+            <View style={styles.studentHeaderCell}>
+              <ThemedText variant="label" color="muted" style={{ fontSize: 10 }}>STUDENT</ThemedText>
+            </View>
+            {traitLabels.map((label, i) => (
+              <View key={i} style={styles.traitHeaderCell}>
+                <ThemedText variant="label" color="muted" style={{ fontSize: 9, textAlign: 'center' }} numberOfLines={2}>
+                  {label.toUpperCase()}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+
+          {/* Student rows */}
+          {students.map((student, idx) => {
+            const record = data?.records?.[student.id];
+            const isLocked = record?.is_locked ?? false;
+
             return (
-              <TouchableOpacity
-                onPress={() => { setSelectedStudent(student); setSheetVisible(true); }}
-                activeOpacity={0.8}
-                style={[styles.studentRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              <View
+                key={student.id}
+                style={[
+                  styles.studentRow,
+                  {
+                    backgroundColor: idx % 2 === 0 ? colors.background : colors.surface,
+                    borderBottomColor: colors.border,
+                  },
+                ]}
               >
-                <Avatar name={student.full_name} photoUrl={student.photo_url} size={42} />
-                <View style={styles.studentInfo}>
-                  <ThemedText variant="body" style={{ fontWeight: '600' }}>{student.full_name}</ThemedText>
-                  <View style={styles.traitDots}>
-                    {TRAITS.map(t => {
-                      const rating = getRating(student.id, t.key);
-                      const ratingColor = rating ? RATINGS.find(r => r.value === rating)?.color : colors.border;
-                      return (
-                        <View
-                          key={t.key}
-                          style={[styles.traitDot, { backgroundColor: ratingColor ?? colors.border }]}
-                        />
-                      );
-                    })}
-                    <ThemedText variant="caption" color="muted" style={{ marginLeft: 4 }}>
-                      {TRAITS.filter(t => !!getRating(student.id, t.key)).length}/5
+                {/* Student info */}
+                <View style={styles.studentCell}>
+                  <Avatar name={student.full_name} photoUrl={student.photo_url} size={30} />
+                  <View style={{ flex: 1, marginLeft: 6 }}>
+                    <ThemedText variant="bodySm" style={{ fontWeight: '600', fontSize: 12 }} numberOfLines={1}>
+                      {student.full_name}
+                    </ThemedText>
+                    <ThemedText variant="caption" color="muted" style={{ fontSize: 10 }}>
+                      {student.student_number}
                     </ThemedText>
                   </View>
+                  {isLocked && <Ionicons name="lock-closed" size={12} color={colors.textMuted} />}
                 </View>
-                {isComplete ? (
-                  <Ionicons name="checkmark-circle" size={22} color={Colors.semantic.success} />
-                ) : (
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
 
-      {/* CREED entry sheet */}
-      <BottomSheet
-        visible={sheetVisible && !!selectedStudent}
-        onClose={() => setSheetVisible(false)}
-        title={selectedStudent?.full_name ?? ''}
-        snapHeight={520}
-      >
-        <View style={{ gap: Spacing.md }}>
-          {TRAITS.map(trait => (
-            <View key={trait.key}>
-              <ThemedText variant="label" color="muted" style={styles.traitLabel}>{trait.label.toUpperCase()}</ThemedText>
-              <View style={styles.ratingRow}>
-                {RATINGS.map(r => {
-                  const isSelected = getRating(selectedStudent?.id ?? '', trait.key) === r.value;
+                {/* Trait cells */}
+                {CREED_TRAITS.map((trait) => {
+                  const value = getEffectiveValue(student.id, trait.key);
+                  const ratingColor = getRatingColor(value);
+
                   return (
                     <TouchableOpacity
-                      key={r.value}
-                      onPress={() => setRating(selectedStudent!.id, trait.key, r.value)}
+                      key={trait.key}
+                      onPress={() => openSheet(student.id, student.full_name, trait.key)}
+                      disabled={isLocked}
+                      activeOpacity={isLocked ? 1 : 0.7}
                       style={[
-                        styles.ratingBtn,
-                        { borderColor: isSelected ? r.color : colors.border, backgroundColor: isSelected ? r.color + '20' : colors.surfaceSecondary },
+                        styles.traitCell,
+                        {
+                          backgroundColor: value ? ratingColor + '20' : colors.surfaceSecondary,
+                          borderColor: value ? ratingColor + '60' : colors.border,
+                        },
                       ]}
                     >
-                      <ThemedText variant="label" style={{ color: isSelected ? r.color : colors.textMuted, fontSize: 11, fontWeight: isSelected ? '700' : '500' }}>
-                        {r.value}
+                      <ThemedText
+                        variant="label"
+                        style={{
+                          color: value ? ratingColor : colors.textMuted,
+                          fontWeight: '800',
+                          fontSize: framework?.rating_scale === 'developmental' ? 8 : 12,
+                          textAlign: 'center',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {value
+                          ? framework?.rating_scale === 'developmental'
+                            ? value.slice(0, 3).toUpperCase()
+                            : value
+                          : '—'}
                       </ThemedText>
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            </View>
-          ))}
+            );
+          })}
+        </ScrollView>
+      )}
 
-          <TouchableOpacity
-            onPress={() => saveStudent(selectedStudent!.id)}
-            style={[styles.saveBtn, { backgroundColor: colors.brand.primary }]}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="checkmark" size={18} color="#fff" />
-            <ThemedText variant="bodyLg" style={{ color: '#fff', fontWeight: '700', marginLeft: 8 }}>Save Ratings</ThemedText>
-          </TouchableOpacity>
+      {/* Rating picker sheet */}
+      <BottomSheet
+        visible={sheetVisible && !!sheetStudent}
+        onClose={() => setSheetVisible(false)}
+        title={`${sheetStudent?.name ?? ''} — ${CREED_TRAITS.find((t) => t.key === sheetTrait)?.label ?? ''}`}
+        snapHeight={Math.min(560, ratings.length * 56 + 100)}
+      >
+        <View style={styles.ratingOptions}>
+          {ratings.map((rating) => {
+            const isActive = sheetCurrentVal === rating || localEdits[sheetStudent?.id ?? '']?.[sheetTrait] === rating;
+            const rColor = getRatingColor(rating);
+            return (
+              <TouchableOpacity
+                key={rating}
+                onPress={() => handleSelectRating(rating)}
+                style={[
+                  styles.ratingOption,
+                  {
+                    backgroundColor: isActive ? rColor + '18' : colors.surfaceSecondary,
+                    borderColor: isActive ? rColor : colors.border,
+                  },
+                ]}
+              >
+                <View style={[styles.ratingDot, { backgroundColor: rColor }]} />
+                <ThemedText variant="bodyLg" style={{ color: rColor, fontWeight: '700', flex: 1 }}>
+                  {rating}
+                </ThemedText>
+                {isActive && <Ionicons name="checkmark-circle" size={18} color={rColor} />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </BottomSheet>
     </SafeAreaView>
@@ -279,37 +354,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.sm,
   },
   headerCenter: { flex: 1, alignItems: 'center', gap: 2 },
-  list: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, paddingBottom: 40 },
+  scaleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  skeletonList: { padding: Spacing.base, gap: Spacing.sm },
+  skeletonRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  studentHeaderCell: { flex: 1, minWidth: 120 },
+  traitHeaderCell: { width: 44, alignItems: 'center' },
   studentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderRadius: Radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: Spacing.md,
-  },
-  studentInfo: { flex: 1, gap: 6 },
-  traitDots: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  traitDot: { width: 8, height: 8, borderRadius: 4 },
-  traitLabel: { marginBottom: 6, letterSpacing: 0.5, fontSize: 11 },
-  ratingRow: { flexDirection: 'row', gap: Spacing.sm },
-  ratingBtn: {
-    flex: 1,
-    alignItems: 'center',
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 52,
   },
-  saveBtn: {
-    flexDirection: 'row',
+  studentCell: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 120, paddingRight: 4 },
+  traitCell: {
+    width: 40,
+    height: 32,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
-    marginTop: Spacing.sm,
+    marginHorizontal: 2,
   },
+  ratingOptions: { gap: 8 },
+  ratingOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+  },
+  ratingDot: { width: 10, height: 10, borderRadius: 5 },
 });

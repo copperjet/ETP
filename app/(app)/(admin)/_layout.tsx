@@ -21,6 +21,24 @@ export default function AdminLayout() {
       <Tabs.Screen name="students" options={{ tabBarIcon: ({ color }) => <Ionicons name="people-outline" size={24} color={color} /> }} />
       <Tabs.Screen name="staff" options={{ tabBarIcon: ({ color }) => <Ionicons name="id-card-outline" size={24} color={color} /> }} />
       <Tabs.Screen name="more" options={{ tabBarIcon: ({ color }) => <Ionicons name="grid-outline" size={24} color={color} /> }} />
+      {/* Hidden stack screens */}
+      <Tabs.Screen name="attendance-overview" options={{ href: null }} />
+      <Tabs.Screen name="attendance-correct"  options={{ href: null }} />
+      <Tabs.Screen name="assignments"         options={{ href: null }} />
+      <Tabs.Screen name="parents"             options={{ href: null }} />
+      <Tabs.Screen name="reports"             options={{ href: null }} />
+      <Tabs.Screen name="marks-matrix"        options={{ href: null }} />
+      <Tabs.Screen name="marks-unlock"        options={{ href: null }} />
+      <Tabs.Screen name="daybook"             options={{ href: null }} />
+      <Tabs.Screen name="notification-log"   options={{ href: null }} />
+      <Tabs.Screen name="calendar"           options={{ href: null }} />
+      <Tabs.Screen name="audit-log"          options={{ href: null }} />
+      <Tabs.Screen name="marks-windows"     options={{ href: null }} />
+      <Tabs.Screen name="semesters"         options={{ href: null }} />
+      <Tabs.Screen name="promotion-wizard"  options={{ href: null }} />
+      <Tabs.Screen name="student-add"      options={{ href: null }} />
+      <Tabs.Screen name="student-edit"     options={{ href: null }} />
+      <Tabs.Screen name="student-import"   options={{ href: null }} />
     </Tabs>
   );
 }

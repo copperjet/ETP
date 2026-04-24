@@ -1,25 +1,23 @@
 /**
  * Report Viewer — /app/report-viewer?report_id=&pdf_url=&student_name=
  * Shared across Parent, HRT and Admin roles.
- * Uses react-native-pdf for rendering. Falls back to a WebView if pdf fails.
+ * Uses WebView with Google Docs viewer for Expo Go compatibility.
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Paths, File as FSFile } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import Pdf from 'react-native-pdf';
+import { WebView } from 'react-native-webview';
+import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../../lib/theme';
 import { ThemedText } from '../../components/ui';
-import { Spacing, Radius } from '../../constants/Typography';
+import { Spacing } from '../../constants/Typography';
 import { Colors } from '../../constants/Colors';
 import { haptics } from '../../lib/haptics';
 
@@ -28,24 +26,24 @@ export default function ReportViewerScreen() {
   const params = useLocalSearchParams<{ report_id: string; pdf_url: string; student_name: string; is_draft?: string }>();
   const { pdf_url, student_name, is_draft } = params;
 
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const [sharing, setSharing] = useState(false);
 
   const isDraft = is_draft === 'true';
+
+  const viewerUri = pdf_url
+    ? `https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(pdf_url)}`
+    : null;
 
   const handleShare = useCallback(async () => {
     if (!pdf_url || sharing) return;
     haptics.medium();
     setSharing(true);
     try {
-      const destFile = new FSFile(Paths.cache, `report-${Date.now()}.pdf`);
-      await FSFile.downloadFileAsync(pdf_url, destFile);
-      await Sharing.shareAsync(destFile.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+      await WebBrowser.openBrowserAsync(pdf_url);
     } catch {
-      // share cancelled or failed — no user-visible error needed
+      // cancelled or failed
     } finally {
       setSharing(false);
     }
@@ -71,13 +69,11 @@ export default function ReportViewerScreen() {
       <Header
         student_name={student_name}
         isDraft={isDraft}
-        page={totalPages > 1 ? `${page}/${totalPages}` : undefined}
         onShare={handleShare}
         sharing={sharing}
         colors={colors}
       />
 
-      {/* Draft watermark banner */}
       {isDraft && (
         <View style={[styles.draftBanner, { backgroundColor: Colors.semantic.errorLight }]}>
           <Ionicons name="alert-circle" size={14} color={Colors.semantic.error} />
@@ -88,7 +84,7 @@ export default function ReportViewerScreen() {
       )}
 
       <View style={{ flex: 1 }}>
-        {loading && (
+        {loading && !error && (
           <View style={[styles.loadingOverlay, { backgroundColor: colors.background }]}>
             <ActivityIndicator size="large" color={colors.brand.primary} />
             <ThemedText variant="bodySm" color="muted" style={{ marginTop: Spacing.md }}>Loading report…</ThemedText>
@@ -101,48 +97,34 @@ export default function ReportViewerScreen() {
             <ThemedText variant="body" style={{ color: Colors.semantic.error, marginTop: Spacing.md }}>
               Could not load PDF
             </ThemedText>
-            <ThemedText variant="bodySm" color="muted" style={{ textAlign: 'center', marginTop: Spacing.sm }}>
-              {error}
-            </ThemedText>
+            <TouchableOpacity
+              onPress={() => { setError(false); setLoading(true); }}
+              style={[styles.retryBtn, { borderColor: colors.brand.primary }]}
+            >
+              <ThemedText variant="bodySm" style={{ color: colors.brand.primary, fontWeight: '600' }}>Try again</ThemedText>
+            </TouchableOpacity>
           </View>
         ) : (
-          <Pdf
-            source={{ uri: pdf_url, cache: true }}
-            style={styles.pdf}
-            trustAllCerts={false}
-            onLoadComplete={(numPages) => {
-              setTotalPages(numPages);
-              setLoading(false);
-            }}
-            onPageChanged={(p) => setPage(p)}
-            onError={(err) => {
-              setLoading(false);
-              setError(typeof err === 'string' ? err : 'Failed to render PDF');
-            }}
-            enablePaging
-            horizontal={false}
-            spacing={0}
-            fitPolicy={0}
+          <WebView
+            source={{ uri: viewerUri! }}
+            style={styles.webview}
+            onLoad={() => setLoading(false)}
+            onError={() => { setLoading(false); setError(true); }}
+            startInLoadingState={false}
+            javaScriptEnabled
+            domStorageEnabled
+            scalesPageToFit
           />
         )}
       </View>
-
-      {/* Page indicator */}
-      {totalPages > 1 && !loading && !error && (
-        <View style={[styles.pageIndicator, { backgroundColor: colors.surfaceSecondary }]}>
-          <ThemedText variant="caption" color="muted">
-            Page {page} of {totalPages}
-          </ThemedText>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
 
 function Header({
-  student_name, isDraft, page, onShare, sharing, colors,
+  student_name, isDraft, onShare, sharing, colors,
 }: {
-  student_name?: string; isDraft: boolean; page?: string;
+  student_name?: string; isDraft: boolean;
   onShare: () => void; sharing: boolean; colors: any;
 }) {
   return (
@@ -157,7 +139,6 @@ function Header({
 
       <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
         <ThemedText variant="h4" numberOfLines={1}>{student_name ?? 'Report Card'}</ThemedText>
-        {page && <ThemedText variant="caption" color="muted">{page}</ThemedText>}
       </View>
 
       <TouchableOpacity
@@ -197,7 +178,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     justifyContent: 'center',
   },
-  pdf: { flex: 1, width: '100%' },
+  webview: { flex: 1, width: '100%' },
+  retryBtn: {
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1.5,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

@@ -158,6 +158,17 @@ export default function FinanceHome() {
             {isLoading ? 'Loading…' : semester?.name ?? 'Active Semester'}
           </ThemedText>
         </View>
+        {!hasSelection && (
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/(finance)/finance-reports' as any)}
+            style={[styles.bulkClearBtn, { backgroundColor: colors.brand.primary }]}
+          >
+            <Ionicons name="document-text-outline" size={16} color="#fff" />
+            <ThemedText variant="bodySm" style={{ color: '#fff', fontWeight: '700', marginLeft: 4 }}>
+              Reports
+            </ThemedText>
+          </TouchableOpacity>
+        )}
         {hasSelection && (
           <TouchableOpacity
             onPress={() => setBulkSheetVisible(true)}

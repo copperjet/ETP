@@ -106,6 +106,12 @@ export default function AdminHome() {
             <ThemedText variant="h3">{school?.name ?? 'Admin'}</ThemedText>
             <ThemedText variant="caption" color="muted">{TODAY}</ThemedText>
           </View>
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/search' as any)}
+            style={[styles.searchBtn, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+          >
+            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
           <Avatar name={user?.fullName ?? 'A'} size={42} />
         </View>
 

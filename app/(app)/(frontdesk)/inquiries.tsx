@@ -8,6 +8,7 @@ import {
   TouchableOpacity, TextInput, KeyboardAvoidingView, Platform,
   RefreshControl,
 } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
@@ -169,7 +170,7 @@ export default function InquiriesScreen() {
           refreshControl={<RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} />}
           renderItem={({ item: inq }) => (
             <TouchableOpacity
-              onPress={() => { setSelectedInquiry(inq); setDetailSheet(true); }}
+              onPress={() => router.push({ pathname: '/(app)/(frontdesk)/inquiry-detail' as any, params: { inquiry_id: inq.id } })}
               activeOpacity={0.8}
               style={[styles.inqRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
