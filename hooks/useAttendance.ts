@@ -188,7 +188,8 @@ export function useAttendanceOverview(schoolId: string, date: string) {
           .from('students')
           .select('id, stream_id')
           .eq('school_id', schoolId)
-          .eq('status', 'active'),
+          .eq('status', 'active')
+          .limit(2000),
         supabase
           .from('attendance_records')
           .select('stream_id, status, register_locked, staff:submitted_by ( full_name )')

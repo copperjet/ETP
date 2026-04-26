@@ -45,6 +45,8 @@ const ROLE_ACCESS: Record<string, AdminRole[]> = {
   announcements:    ['super_admin', 'admin', 'principal', 'coordinator'],
   calendar:         ['super_admin', 'admin', 'principal', 'coordinator'],
   notification_log: ['super_admin', 'admin', 'principal'],
+  fee_structure:    ['super_admin', 'admin'],
+  backup:           ['super_admin', 'admin'],
 };
 
 function can(role: string | undefined, feature: string): boolean {
@@ -122,6 +124,8 @@ export default function AdminMore() {
         ...(can(role, 'marks_windows')    ? [{ icon: 'create-outline' as IoniconsName,            label: 'Marks Windows',        sublabel: 'Open / close entry windows',       onPress: () => router.push('/(app)/(admin)/marks-windows' as any) }] : []),
         ...(can(role, 'semesters')        ? [{ icon: 'calendar-number-outline' as IoniconsName,   label: 'Semesters',            sublabel: 'Manage & activate semesters',      onPress: () => router.push('/(app)/(admin)/semesters' as any) }] : []),
         ...(can(role, 'promotion')        ? [{ icon: 'arrow-up-circle-outline' as IoniconsName,   label: 'Promotion Wizard',     sublabel: 'Year-end promote / graduate',      onPress: () => router.push('/(app)/(admin)/promotion-wizard' as any) }] : []),
+        ...(can(role, 'fee_structure')   ? [{ icon: 'cash-outline' as IoniconsName,              label: 'Fee Structure',        sublabel: 'Manage fees & categories',         onPress: () => router.push('/(app)/(admin)/fee-structure' as any) }] : []),
+        ...(can(role, 'backup')           ? [{ icon: 'cloud-upload-outline' as IoniconsName,     label: 'Backup to Drive',      sublabel: 'Export data to Google Drive',      onPress: () => router.push('/(app)/(admin)/backup-settings' as any) }] : []),
       ].filter(Boolean),
     },
 

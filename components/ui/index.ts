@@ -22,3 +22,4 @@ export { Chip, FilterChipRow } from './Chip';
 export { TabBar } from './TabBar';
 export { FormField } from './FormField';
 export { AppTabBar } from './AppTabBar';
+export { BiometricEnrollModal } from './BiometricEnrollModal';

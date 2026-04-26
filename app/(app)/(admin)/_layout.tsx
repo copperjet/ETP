@@ -47,6 +47,9 @@ export default function AdminLayout() {
       <Tabs.Screen name="announcements"       options={{ href: null }} />
       <Tabs.Screen name="timetable-upload"    options={{ href: null }} />
       <Tabs.Screen name="school-onboarding"   options={{ href: null }} />
+      <Tabs.Screen name="fee-structure"       options={{ href: null }} />
+      <Tabs.Screen name="backup-settings"     options={{ href: null }} />
+      <Tabs.Screen name="student-credentials" options={{ href: null }} />
     </Tabs>
   );
 }

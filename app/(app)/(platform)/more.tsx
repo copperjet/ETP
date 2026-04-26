@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, Alert, StatusBar, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { ThemedText, Avatar } from '../../../components/ui';
@@ -44,6 +45,29 @@ export default function PlatformMore() {
   const { user, signOut } = useAuthStore();
 
   const sections: { title: string; items: MenuItem[] }[] = [
+    {
+      title: 'Platform Tools',
+      items: [
+        {
+          icon: 'bar-chart-outline',
+          label: 'Platform Metrics',
+          sublabel: 'MRR, ARR, churn, school growth',
+          onPress: () => router.push('/(app)/(platform)/metrics' as any),
+        },
+        {
+          icon: 'shield-outline',
+          label: 'Impersonation Log',
+          sublabel: 'Support session audit trail',
+          onPress: () => router.push('/(app)/(platform)/impersonation-log' as any),
+        },
+        {
+          icon: 'business-outline',
+          label: 'Onboard School',
+          sublabel: 'Add a new school tenant',
+          onPress: () => router.push('/(app)/(platform)/onboard' as any),
+        },
+      ],
+    },
     {
       title: 'Account',
       items: [

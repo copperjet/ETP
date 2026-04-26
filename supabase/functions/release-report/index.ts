@@ -147,15 +147,19 @@ Deno.serve(async (req) => {
       await supabase.from('notification_logs').insert(notifRows);
       totalNotified += parentUserIds.length;
 
-      // Audit log
+      // Audit log — must match audit_logs schema: event_type, actor_id, student_id, data
+      const { data: callerStaff } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('auth_user_id', caller.id)
+        .eq('school_id', school_id)
+        .maybeSingle();
       await supabase.from('audit_logs').insert({
         school_id,
-        action: 'report_released',
-        entity_type: 'report',
-        entity_id: report.id,
-        performed_by: caller.id,
-        performed_at: now,
-        meta: { student_id: report.student_id, semester_id },
+        event_type: 'report_released',
+        actor_id: callerStaff?.id ?? null,
+        student_id: report.student_id,
+        data: { report_id: report.id, semester_id },
       });
     }
 

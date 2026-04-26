@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { OfflineBanner } from '../../components/ui';
+import { OfflineBanner, BiometricEnrollModal } from '../../components/ui';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -50,7 +50,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (!user) return;
-    registerPushToken(user.id, user.schoolId);
+    registerPushToken(user.id, user.schoolId ?? '');
 
     notifListener.current = Notifications.addNotificationReceivedListener(_notification => {
       // Foreground notification — badge updates handled by handler above
@@ -78,6 +78,7 @@ export default function AppLayout() {
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
       <OfflineBanner />
+      {user && <BiometricEnrollModal userId={user.id} />}
     </View>
   );
 }

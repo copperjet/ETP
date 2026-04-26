@@ -2,7 +2,7 @@
  * invite-user — Supabase Edge Function
  *
  * POST /functions/v1/invite-user
- * Body: { staff_id?: string, parent_id?: string, email: string, full_name: string, school_id: string }
+ * Body: { staff_id?: string, parent_id?: string, student_id?: string, email: string, full_name: string, school_id: string }
  * Auth: Bearer <admin JWT> (caller must be admin/super_admin)
  *
  * Creates a Supabase auth account, sets app_metadata, links to staff/parent record,
@@ -37,11 +37,11 @@ Deno.serve(async (req) => {
       return json({ error: "Forbidden — admin role required" }, 403);
     }
 
-    const { staff_id, parent_id, email, full_name, school_id } = await req.json() as {
-      staff_id?: string; parent_id?: string; email: string; full_name: string; school_id: string;
+    const { staff_id, parent_id, student_id, email, full_name, school_id } = await req.json() as {
+      staff_id?: string; parent_id?: string; student_id?: string; email: string; full_name: string; school_id: string;
     };
     if (!email || !full_name || !school_id) return json({ error: "email, full_name, school_id required" }, 400);
-    if (!staff_id && !parent_id) return json({ error: "staff_id or parent_id required" }, 400);
+    if (!staff_id && !parent_id && !student_id) return json({ error: "staff_id, parent_id, or student_id required" }, 400);
 
     // ── Get roles for staff member ────────────────────────────
     let roles: string[] = ["parent"];
@@ -53,6 +53,9 @@ Deno.serve(async (req) => {
         .eq("staff_id", staff_id);
       roles = (roleRows ?? []).map((r: any) => r.role);
       activeRole = roles[0] ?? "hrt";
+    } else if (student_id) {
+      roles = ["student"];
+      activeRole = "student";
     }
 
     // ── Create auth user via admin invite ─────────────────────
@@ -72,16 +75,19 @@ Deno.serve(async (req) => {
         school_id,
         staff_id: staff_id ?? null,
         parent_id: parent_id ?? null,
+        student_id: student_id ?? null,
         roles,
         active_role: activeRole,
       },
     });
 
-    // ── Link auth_user_id to staff / parent record ────────────
+    // ── Link auth_user_id to staff / parent / student record ────────────
     if (staff_id) {
       await admin.from("staff").update({ auth_user_id: authUserId }).eq("id", staff_id);
     } else if (parent_id) {
       await admin.from("parents").update({ auth_user_id: authUserId }).eq("id", parent_id);
+    } else if (student_id) {
+      await admin.from("students").update({ auth_user_id: authUserId }).eq("id", student_id);
     }
 
     return json({ success: true, auth_user_id: authUserId });

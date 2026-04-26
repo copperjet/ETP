@@ -33,6 +33,10 @@ export default function Index() {
       return <Redirect href="/(app)/(frontdesk)/home" />;
     case 'parent':
       return <Redirect href="/(app)/(parent)/home" />;
+    case 'student':
+      return <Redirect href="/(app)/(student)/home" />;
+    case 'hr':
+      return <Redirect href="/(app)/(hr)/home" />;
     default:
       return <Redirect href="/(auth)/school-code" />;
   }

@@ -13,11 +13,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  Alert,
+  Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
@@ -153,6 +156,31 @@ export default function StudentFinanceScreen() {
     onError: () => haptics.error(),
   });
 
+  // Generate receipt PDF
+  const [generatingReceipt, setGeneratingReceipt] = useState(false);
+
+  const handleGenerateReceipt = async () => {
+    setGeneratingReceipt(true);
+    haptics.medium();
+    try {
+      const { data, error } = await (supabase as any).functions.invoke('generate-receipt', {
+        body: { finance_record_id },
+      });
+      if (error || !data?.receipt_url) throw new Error('Receipt generation failed');
+      haptics.success();
+      // Offer share + open
+      const result = await Share.share({ message: `Receipt: ${data.receipt_url}`, url: data.receipt_url }).catch(() => null);
+      if (!result || result.action === Share.dismissedAction) {
+        await WebBrowser.openBrowserAsync(data.receipt_url);
+      }
+    } catch {
+      haptics.error();
+      Alert.alert('Error', 'Could not generate receipt. Try again.');
+    } finally {
+      setGeneratingReceipt(false);
+    }
+  };
+
   const handleRecordPayment = () => {
     setAmountError('');
     const parsed = parseFloat(amountInput);
@@ -237,6 +265,20 @@ export default function StudentFinanceScreen() {
             </View>
 
             {/* Action buttons */}
+            {/* Receipt button — always visible when record exists */}
+            {record && (
+              <TouchableOpacity
+                onPress={handleGenerateReceipt}
+                disabled={generatingReceipt}
+                style={[styles.receiptBtn, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary, opacity: generatingReceipt ? 0.6 : 1 }]}
+              >
+                <Ionicons name={generatingReceipt ? 'hourglass-outline' : 'receipt-outline'} size={16} color={colors.brand.primary} />
+                <ThemedText variant="bodySm" style={{ color: colors.brand.primary, fontWeight: '600', marginLeft: 6 }}>
+                  {generatingReceipt ? 'Generating…' : 'Download Receipt'}
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+
             {!isPaid && (
               <View style={styles.actionRow}>
                 <TouchableOpacity
@@ -399,6 +441,7 @@ const styles = StyleSheet.create({
   feeIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   actionRow: { flexDirection: 'row', gap: Spacing.sm },
   actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, borderRadius: Radius.lg },
+  receiptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, borderRadius: Radius.md, borderWidth: 1, marginBottom: Spacing.sm },
   sectionLabel: { marginTop: Spacing.sm, marginBottom: Spacing.sm },
   txRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
   txIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

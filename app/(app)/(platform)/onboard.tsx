@@ -108,7 +108,7 @@ function InlineInput({
         keyboardType={keyboardType}
         secureTextEntry={secureTextEntry}
         maxLength={maxLength}
-        style={{ flex: 1, fontSize: 15, color: colors.text, paddingVertical: 0 }}
+        style={{ flex: 1, fontSize: 15, color: colors.textPrimary, paddingVertical: 0 }}
       />
     </View>
   );
@@ -141,7 +141,7 @@ function SelectRow({
           >
             <ThemedText style={{
               fontSize: 13, fontWeight: '600',
-              color: value === opt.value ? '#fff' : colors.text,
+              color: value === opt.value ? '#fff' : colors.textPrimary,
             }}>
               {opt.label}
             </ThemedText>
@@ -168,7 +168,7 @@ function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: 
             onPress={() => { haptics.light(); onChange(c); }}
             style={[
               styles.swatch,
-              { backgroundColor: c, borderWidth: value === c ? 3 : 1, borderColor: value === c ? colors.text : 'transparent' },
+              { backgroundColor: c, borderWidth: value === c ? 3 : 1, borderColor: value === c ? colors.textPrimary : 'transparent' },
             ]}
           />
         ))}
@@ -182,7 +182,7 @@ function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: 
           placeholderTextColor={colors.textMuted}
           autoCapitalize="characters"
           maxLength={7}
-          style={{ flex: 1, fontSize: 15, color: colors.text, fontFamily: 'monospace' }}
+          style={{ flex: 1, fontSize: 15, color: colors.textPrimary, fontFamily: 'monospace' }}
         />
       </View>
     </View>
@@ -327,7 +327,7 @@ function Step3({ form, set }: { form: SchoolForm; set: (f: Partial<SchoolForm>) 
             >
               <ThemedText style={{
                 fontSize: 13, fontWeight: '600',
-                color: form.subscription_status === s.value ? '#fff' : colors.text,
+                color: form.subscription_status === s.value ? '#fff' : colors.textPrimary,
               }}>
                 {s.label}
               </ThemedText>
@@ -563,7 +563,7 @@ export default function SchoolOnboarding() {
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={back} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <ThemedText style={{ fontWeight: '700', fontSize: 16 }}>Onboard School</ThemedText>

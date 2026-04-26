@@ -187,7 +187,14 @@ export default function StudentProfileScreen() {
             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <ThemedText style={styles.heroTitle}>Student Profile</ThemedText>
-          <View style={{ width: 24 }} />
+          {(user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) && (
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/(app)/(admin)/student-credentials' as any, params: { id: studentId } })}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="key-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {profileQuery.isLoading ? (

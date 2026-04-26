@@ -223,3 +223,36 @@
 - Spacing constants now used app-wide; remaining hardcoded values (8, 6, 4 px) appear inside chip/dot micro-elements where literal values are appropriate.
 - `Card`, `Badge`, `ListItem`, `SectionHeader`, `FormField`, `StatCard`, `Button` primitives all in place; remaining inconsistencies are in screens listed above (custom row layouts in `parent/reports.tsx` could move to `ListItem` but the score-chip + accent-bar treatment is intentional and premium-looking).
 - Tab bar pattern duplicated in `assignments.tsx`, `(hrt)/marks.tsx`, `student/[id].tsx`, `(frontdesk)/inquiries.tsx` — consider migrating to existing `<TabBar>` component in a follow-up.
+
+---
+
+## S19 — Phase 2 Polish & Fill Gaps
+**Date:** 2026-04-27
+**Scope:** ROADMAP.md Phase 2 — Biometric enrollment, receipt PDFs, native share sheet, report audit trail.
+
+**Biometric enrollment:**
+- `components/ui/BiometricEnrollModal.tsx` — bottom sheet modal; shown once per device/user via `SecureStore` flag; detects face/fingerprint hardware; `LocalAuthentication.authenticateAsync` on enable; spring/opacity animation; dismisses on skip or cancel
+- `app/(app)/_layout.tsx` — wired `<BiometricEnrollModal userId={user.id} />` after auth; fixed `schoolId` null coercion; imported via barrel export
+- `components/ui/index.ts` — exported `BiometricEnrollModal`
+
+**Receipt PDFs:**
+- `supabase/functions/generate-receipt/index.ts` — Edge Function; fetches finance record + transactions + school branding; renders full HTML receipt with colour theming, transaction table, summary, signature line; Puppeteer PDF (fallback: HTML); uploads to `storage.receipts`; stores URL on `finance_records.receipt_url`
+- `supabase/migrations/033_receipt_url_and_storage.sql` — `receipt_url TEXT` column on `finance_records`; `receipts` storage bucket (public, 10 MB); RLS for school member read + finance write + service role
+- `app/(app)/(finance)/student-finance.tsx` — `handleGenerateReceipt` async handler; "Download Receipt" button in fee status card; `Share.share` with `WebBrowser` fallback; `Alert` + `Share` added to RN imports; removed duplicate `Share` import
+
+**Native Share sheet:**
+- `app/(app)/report-viewer.tsx` — replaced `WebBrowser.openBrowserAsync` with `Share.share({ message, url })`; fallback to `WebBrowser` on dismiss/error; `student_name` added to share text
+
+**Report approval audit trail:**
+- `hooks/useReports.ts` — `useReportAuditLog(reportId, schoolId)` hook; queries `audit_logs` filtered by `data @> {report_id}`; returns `ReportAuditEntry[]` with actor name + timestamp
+- `app/(app)/(admin)/reports.tsx` — imported `useReportAuditLog` + `format`; `auditLog` queried when bottom sheet opens; skeleton loading state; colour-coded dot per event type (released=green, approved=blue); `snapHeight` 420→560; `auditRow` + `auditDot` styles added
+
+**TypeScript:** 0 errors
+
+**S19 Post-Audit Fixes:**
+- **BiometricEnrollModal** — `SecureStore` flag now written on user action (enable/skip/dismiss), not on hardware detection. Added 800 ms settle delay + cancellation token to prevent race with post-login navigation.
+- **`useAdminApproveReport`** — added `audit_logs` write (`event_type: report_approved`, correct schema: `actor_id`, `student_id`, `data: { report_id }`). Was previously missing entirely.
+- **`release-report` edge fn** — fixed `audit_logs` insert: was using non-existent columns (`action`, `entity_type`, `entity_id`, `performed_by`, `meta`). Now uses correct schema (`event_type`, `actor_id` resolved from `staff` via `auth_user_id`, `student_id`, `data: { report_id, semester_id }`).
+- **`useReportAuditLog`** — added `studentId` param; queries by indexed `student_id` column when available (fast path), falls back to JSONB `@>` contains. Client-side filters by `data.report_id`. Prevents full-table JSONB scan.
+- **Admin reports screen** — passes `sheetReport.student.id` to `useReportAuditLog`; audit section header `TouchableOpacity` (no handler) replaced with `View`; sheet content wrapped in `ScrollView` so audit entries don't clip.
+- **`generate-receipt` edge fn** — added caller JWT verification; checks `finance|admin|super_admin|hot` role before proceeding. Was callable by any authenticated user.

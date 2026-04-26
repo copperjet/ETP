@@ -2,8 +2,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json } | 
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'ap' | 'sick';
 export type UserRole =
-  | 'super_admin' | 'admin' | 'front_desk' | 'finance'
-  | 'principal' | 'coordinator' | 'hod' | 'hrt' | 'st' | 'parent';
+  | 'super_admin' | 'admin' | 'front_desk' | 'finance' | 'hr'
+  | 'principal' | 'coordinator' | 'hod' | 'hrt' | 'st' | 'parent' | 'student';
 export type ReportStatus =
   | 'draft' | 'pending_approval' | 'approved' | 'finance_pending' | 'under_review' | 'released';
 export type SubscriptionPlan = 'starter' | 'growth' | 'scale' | 'enterprise';
@@ -36,6 +36,8 @@ export interface Student {
   stream_id: string | null;
   enrollment_date: string | null;
   status: string;
+  auth_user_id: string | null;
+  email: string | null;
   created_at: string;
 }
 

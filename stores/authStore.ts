@@ -11,6 +11,7 @@ interface AuthUser {
   fullName: string;
   staffId: string | null;
   parentId: string | null;
+  studentId: string | null;
   roles: UserRole[];
   activeRole: UserRole;
   schoolId: string | null;

@@ -177,7 +177,8 @@ export function useAdminReports(schoolId: string, status: ReportStatus | 'all') 
                  students ( id, full_name, student_number, photo_url ),
                  semesters ( id, name )`)
         .eq('school_id', schoolId)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .limit(500);
       if (status !== 'all') q = q.eq('status', status);
       const { data, error } = await q;
       if (error) throw error;
@@ -326,6 +327,21 @@ export function useAdminApproveReport(schoolId: string) {
         .eq('id', params.reportId)
         .eq('school_id', schoolId);
       if (error) throw error;
+
+      // Fetch student_id for audit log
+      const { data: rpt } = await db
+        .from('reports')
+        .select('student_id')
+        .eq('id', params.reportId)
+        .single();
+
+      await db.from('audit_logs').insert({
+        school_id: schoolId,
+        event_type: 'report_approved',
+        actor_id: params.staffId,
+        student_id: rpt?.student_id ?? null,
+        data: { report_id: params.reportId },
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-reports'] }),
   });
@@ -343,6 +359,66 @@ export function useReleaseReports(schoolId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-reports'] });
       qc.invalidateQueries({ queryKey: ['admin-report-counts'] });
+    },
+  });
+}
+
+// ─── Report audit trail ───────────────────────────────────────────────────────
+
+export interface ReportAuditEntry {
+  id: string;
+  event_type: string;
+  actor_name: string | null;
+  created_at: string;
+  data: Record<string, any> | null;
+}
+
+export function useReportAuditLog(
+  reportId: string | null,
+  schoolId: string,
+  studentId?: string | null,
+) {
+  return useQuery<ReportAuditEntry[]>({
+    queryKey: ['report-audit', reportId],
+    enabled: !!reportId && !!schoolId,
+    staleTime: 1000 * 30,
+    queryFn: async () => {
+      const db = supabase as any;
+      // Primary filter: student_id (indexed) + report event types
+      // Secondary: filter client-side to only entries whose data.report_id matches
+      let q = db
+        .from('audit_logs')
+        .select(`
+          id, event_type, created_at, data,
+          actor:actor_id ( full_name )
+        `)
+        .eq('school_id', schoolId)
+        .in('event_type', ['report_approved', 'report_released', 'report_unlocked'])
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Narrow by student if available (faster), else fall back to JSONB contains
+      if (studentId) {
+        q = q.eq('student_id', studentId);
+      } else {
+        q = q.contains('data', { report_id: reportId });
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      // Client-side filter: only entries explicitly linked to this report
+      const rows = (data ?? []).filter((row: any) =>
+        !studentId || row.data?.report_id === reportId || row.data?.report_id == null
+      );
+
+      return rows.map((row: any) => ({
+        id: row.id,
+        event_type: row.event_type,
+        actor_name: row.actor?.full_name ?? null,
+        created_at: row.created_at,
+        data: row.data ?? null,
+      }));
     },
   });
 }

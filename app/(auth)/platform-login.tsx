@@ -55,6 +55,7 @@ export default function PlatformLoginScreen() {
       fullName: data.session.user.user_metadata?.full_name ?? '',
       staffId: null,
       parentId: null,
+      studentId: null,
       roles: roles as any,
       activeRole: 'super_admin',
       schoolId: null,

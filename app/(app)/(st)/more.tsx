@@ -50,6 +50,7 @@ export default function STMore() {
         { icon: 'cloud-upload-outline', label: 'Import Marks',   sublabel: 'Bulk CSV import',            onPress: () => router.push('/(app)/(st)/marks-import' as any) },
         { icon: 'people-outline',       label: 'My Students',    sublabel: 'View student list',          onPress: () => router.push('/(app)/(st)/students' as any) },
         { icon: 'book-outline',         label: 'Day Book',       sublabel: 'Student notes',              onPress: () => router.push('/(app)/(st)/daybook' as any) },
+        { icon: 'chatbubble-ellipses-outline', label: 'Parent Messages', sublabel: 'Message parents of your students', onPress: () => router.push('/(app)/(st)/messages' as any) },
       ],
     },
     {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Image, StyleSheet, ViewStyle, ImageStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { ThemedText } from './ThemedText';
 import { useTheme } from '../../lib/theme';
 
@@ -42,12 +43,21 @@ export function Avatar({ name, photoUrl, size = 40, style }: AvatarProps) {
   const safeName = name || '?';
   const { bg, fg } = nameToColor(safeName);
   const fontSize = Math.round(size * 0.38);
+  const [hasError, setHasError] = React.useState(false);
 
-  if (photoUrl) {
+  if (photoUrl && !hasError) {
+    // Append Supabase image transform for small avatars (2x for retina)
+    const dpr = 2;
+    const transformedUrl = photoUrl.includes('supabase.co')
+      ? `${photoUrl}?width=${size * dpr}&height=${size * dpr}&resize=cover`
+      : photoUrl;
     return (
       <Image
-        source={{ uri: photoUrl }}
-        style={[{ width: size, height: size, borderRadius: size / 2 } as ImageStyle, style as ImageStyle]}
+        source={transformedUrl}
+        cachePolicy="disk"
+        contentFit="cover"
+        onError={() => setHasError(true)}
+        style={[{ width: size, height: size, borderRadius: size / 2 }, style as any]}
       />
     );
   }

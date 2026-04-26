@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,13 +42,21 @@ export default function ReportViewerScreen() {
     haptics.medium();
     setSharing(true);
     try {
-      await WebBrowser.openBrowserAsync(pdf_url);
+      const result = await Share.share(
+        { message: `Report Card${student_name ? ' — ' + student_name : ''}: ${pdf_url}`, url: pdf_url },
+        { dialogTitle: `Share ${student_name ?? 'Report Card'}` },
+      );
+      if (result.action === Share.dismissedAction) {
+        // User dismissed share sheet — open in browser as fallback
+        await WebBrowser.openBrowserAsync(pdf_url).catch(() => {});
+      }
     } catch {
-      // cancelled or failed
+      // fallback: open in browser
+      await WebBrowser.openBrowserAsync(pdf_url).catch(() => {});
     } finally {
       setSharing(false);
     }
-  }, [pdf_url, sharing]);
+  }, [pdf_url, sharing, student_name]);
 
   if (!pdf_url) {
     return (

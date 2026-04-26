@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     // Fetch all schools
     const { data: schools, error: schoolsErr } = await adminClient
       .from("schools")
-      .select("id, name, code, logo_url, primary_color, secondary_color, country, subscription_plan, subscription_status, created_at")
+      .select("id, name, code, logo_url, primary_color, secondary_color, country, subscription_plan, subscription_status, created_at, renewal_date")
       .order("created_at", { ascending: false });
 
     if (schoolsErr) return json({ error: schoolsErr.message }, 500);
@@ -56,20 +56,40 @@ Deno.serve(async (req) => {
       .select("school_id")
       .eq("status", "active");
 
+    // Fetch report + attendance counts
+    const { data: reportCounts } = await adminClient
+      .from("reports")
+      .select("school_id");
+
+    const { data: attendCounts } = await adminClient
+      .from("attendance_records")
+      .select("school_id")
+      .limit(50000);
+
     // Build lookup maps
     const studentMap: Record<string, number> = {};
     const staffMap: Record<string, number> = {};
+    const reportMap: Record<string, number> = {};
+    const attendMap: Record<string, number> = {};
     (studentCounts ?? []).forEach((r: any) => {
       studentMap[r.school_id] = (studentMap[r.school_id] ?? 0) + 1;
     });
     (staffCounts ?? []).forEach((r: any) => {
       staffMap[r.school_id] = (staffMap[r.school_id] ?? 0) + 1;
     });
+    (reportCounts ?? []).forEach((r: any) => {
+      reportMap[r.school_id] = (reportMap[r.school_id] ?? 0) + 1;
+    });
+    (attendCounts ?? []).forEach((r: any) => {
+      attendMap[r.school_id] = (attendMap[r.school_id] ?? 0) + 1;
+    });
 
     const enriched = (schools ?? []).map((s: any) => ({
       ...s,
-      student_count: studentMap[s.id] ?? 0,
-      staff_count:   staffMap[s.id]   ?? 0,
+      student_count:    studentMap[s.id] ?? 0,
+      staff_count:      staffMap[s.id]   ?? 0,
+      report_count:     reportMap[s.id]  ?? 0,
+      attendance_count: attendMap[s.id]  ?? 0,
     }));
 
     const activeCount = enriched.filter((s: any) =>

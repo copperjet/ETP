@@ -88,6 +88,7 @@ export default function StudentAddScreen() {
       base64: true,
       allowsEditing: true,
       aspect: [1, 1],
+      exif: false,
     });
     if (!result.canceled && result.assets[0]?.base64) {
       setPhotoBase64(result.assets[0].base64);

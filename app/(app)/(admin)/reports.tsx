@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -21,9 +22,11 @@ import {
 } from '../../../components/ui';
 import {
   useAdminReports, useAdminReportCounts, useAdminApproveReport, useReleaseReports,
+  useReportAuditLog,
   STATUS_META, type ReportStatus, type ReportSummary,
 } from '../../../hooks/useReports';
 import { ReportStatusPipeline } from '../../../components/modules/ReportStatusPipeline';
+import { format } from 'date-fns';
 import { Spacing, Radius, Shadow } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
@@ -49,6 +52,7 @@ export default function AdminReportsScreen() {
   const { data: counts = {} as Partial<Record<ReportStatus, number>> } = useAdminReportCounts(schoolId);
   const approveMutation = useAdminApproveReport(schoolId);
   const releaseMutation = useReleaseReports(schoolId);
+  const { data: auditLog = [], isLoading: auditLoading } = useReportAuditLog(sheetReport?.id ?? null, schoolId, sheetReport?.student.id);
 
   const handleApprove = useCallback(async (report: ReportSummary) => {
     haptics.medium();
@@ -208,10 +212,54 @@ export default function AdminReportsScreen() {
         visible={!!sheetReport}
         onClose={() => setSheetReport(null)}
         title={sheetReport?.student.full_name ?? 'Report'}
-        snapHeight={420}
+        snapHeight={560}
       >
         {sheetReport && (
-          <View style={{ gap: Spacing.base }}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={{ gap: Spacing.base, paddingBottom: Spacing.xl }}>
+
+            {/* Approval audit trail */}
+            {(auditLoading || auditLog.length > 0) && (
+              <View style={{ gap: Spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
+                  <ThemedText variant="label" color="muted" style={{ fontSize: 10, letterSpacing: 0.6 }}>APPROVAL HISTORY</ThemedText>
+                </View>
+                {auditLoading ? (
+                  <View style={{ gap: 6 }}>
+                    {[0, 1].map(i => (
+                      <View key={i} style={[styles.auditRow, { backgroundColor: colors.surfaceSecondary }]}>
+                        <View style={{ flex: 1, gap: 4 }}>
+                          <View style={{ width: '45%', height: 11, backgroundColor: colors.border, borderRadius: 4 }} />
+                          <View style={{ width: '25%', height: 9, backgroundColor: colors.border, borderRadius: 4 }} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={{ gap: 6 }}>
+                    {auditLog.map(entry => (
+                      <View key={entry.id} style={[styles.auditRow, { backgroundColor: colors.surfaceSecondary }]}>
+                        <View style={[styles.auditDot, { backgroundColor:
+                          entry.event_type === 'report_released' ? Colors.semantic.success :
+                          entry.event_type === 'report_approved' ? Colors.semantic.info :
+                          colors.brand.primary }]} />
+                        <View style={{ flex: 1 }}>
+                          <ThemedText variant="bodySm" style={{ fontWeight: '600' }}>
+                            {entry.event_type === 'report_released' ? 'Released to parent' :
+                             entry.event_type === 'report_approved' ? 'Approved' :
+                             entry.event_type.replace(/_/g, ' ')}
+                          </ThemedText>
+                          <ThemedText variant="caption" color="muted">
+                            {entry.actor_name ?? 'System'} · {format(new Date(entry.created_at), 'd MMM, HH:mm')}
+                          </ThemedText>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
             <View style={[styles.statRow, { backgroundColor: colors.surfaceSecondary, borderRadius: Radius.md }]}>
               <View style={styles.statItem}>
                 <ThemedText variant="h3" style={{ color: colors.brand.primary }}>
@@ -303,6 +351,7 @@ export default function AdminReportsScreen() {
               )}
             </View>
           </View>
+          </ScrollView>
         )}
       </BottomSheet>
     </SafeAreaView>
@@ -354,5 +403,19 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
+  },
+  auditRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+  },
+  auditDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 4,
+    flexShrink: 0,
   },
 });

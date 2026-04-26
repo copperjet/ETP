@@ -76,6 +76,33 @@ BEGIN
     RETURN jsonb_set(event, '{claims}', v_claims);
   END IF;
 
+  -- ── Look up student ─────────────────────────────────────────
+  DECLARE
+    v_student_id uuid;
+  BEGIN
+    SELECT s.id, s.school_id
+      INTO v_student_id, v_school_id
+      FROM students s
+     WHERE s.auth_user_id = v_uid
+     LIMIT 1;
+
+    IF v_student_id IS NOT NULL THEN
+      v_claims := jsonb_set(
+        v_claims,
+        '{app_metadata}',
+        COALESCE(v_claims -> 'app_metadata', '{}'::jsonb) || jsonb_build_object(
+          'school_id',   v_school_id::text,
+          'staff_id',    NULL,
+          'parent_id',   NULL,
+          'student_id',  v_student_id::text,
+          'roles',       '["student"]'::jsonb,
+          'active_role', 'student'
+        )
+      );
+      RETURN jsonb_set(event, '{claims}', v_claims);
+    END IF;
+  END;
+
   -- No matching record — return event unmodified
   RETURN event;
 END;
@@ -100,6 +127,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_finance_on_enrollment ON student_year_records;
 CREATE TRIGGER trg_finance_on_enrollment
 AFTER INSERT ON student_year_records
 FOR EACH ROW EXECUTE FUNCTION create_finance_record_on_enrollment();

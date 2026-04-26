@@ -28,6 +28,8 @@ const ROLE_META: Record<UserRole, { label: string; icon: string; description: st
   finance:    { label: 'Finance',            icon: 'card',            description: 'Fee clearance and financial reports' },
   front_desk: { label: 'Front Desk',         icon: 'headset',         description: 'Admission inquiries and visitor management' },
   parent:     { label: 'Parent',            icon: 'heart',           description: "Your children's progress and reports" },
+  student:    { label: 'Student',            icon: 'school',          description: 'View your marks, attendance, and reports' },
+  hr:         { label: 'Human Resources',    icon: 'briefcase',       description: 'Staff leave management and directory' },
 };
 
 export default function SwitchRoleScreen() {

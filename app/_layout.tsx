@@ -42,6 +42,7 @@ export default function RootLayout() {
             fullName: userMeta?.full_name ?? '',
             staffId: meta?.staff_id ?? null,
             parentId: meta?.parent_id ?? null,
+            studentId: meta?.student_id ?? null,
             roles: Array.isArray(meta?.roles) ? meta.roles : [],
             activeRole: meta?.active_role ?? 'hrt',
             schoolId,

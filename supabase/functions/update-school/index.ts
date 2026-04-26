@@ -41,11 +41,12 @@ Deno.serve(async (req) => {
       logo_url?: string;
       primary_color?: string;
       secondary_color?: string;
+      renewal_date?: string;
     };
 
     if (!school_id) return json({ error: "school_id required" }, 400);
 
-    const ALLOWED = ['subscription_plan', 'subscription_status', 'name', 'logo_url', 'primary_color', 'secondary_color'];
+    const ALLOWED = ['subscription_plan', 'subscription_status', 'name', 'logo_url', 'primary_color', 'secondary_color', 'renewal_date'];
     const safe: Record<string, any> = {};
     for (const key of ALLOWED) {
       if (patch[key as keyof typeof patch] !== undefined) safe[key] = patch[key as keyof typeof patch];
