@@ -59,7 +59,7 @@ export default function ParentInboxScreen() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId ?? '';
-  const parentId = user?.staffId ?? null;
+  const parentId = user?.parentId ?? null;
 
   const [activeTab, setActiveTab] = useState<TabValue>('daybook');
 

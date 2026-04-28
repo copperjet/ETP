@@ -164,9 +164,9 @@ export default function SchoolStructureScreen() {
     );
   };
 
-  const confirmDelete = (row: any, kind: EntityKind) => {
+  const confirmDelete = async (row: any, kind: EntityKind) => {
     if (!data) return;
-    // Block if has children
+    // Block if has children in cached tree
     let blockedReason = '';
     if (kind === 'section' && data.grades.some(g => g.section_id === row.id)) {
       blockedReason = 'This section has grades. Delete those first.';
@@ -177,6 +177,43 @@ export default function SchoolStructureScreen() {
       Alert.alert('Cannot delete', blockedReason);
       return;
     }
+
+    // Async integrity checks for leaf kinds — query DB for dependents
+    try {
+      const db = supabase as any;
+      if (kind === 'stream') {
+        const { count } = await db
+          .from('students').select('id', { count: 'exact', head: true })
+          .eq('school_id', schoolId).eq('stream_id', row.id).eq('status', 'active');
+        if ((count ?? 0) > 0) {
+          Alert.alert('Cannot delete', `This stream has ${count} active student(s). Move or deactivate them first.`);
+          return;
+        }
+      } else if (kind === 'subject') {
+        const [enr, asn] = await Promise.all([
+          db.from('subject_enrollments').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('subject_id', row.id),
+          db.from('subject_teacher_assignments').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('subject_id', row.id),
+        ]);
+        const e = enr.count ?? 0; const a = asn.count ?? 0;
+        if (e > 0 || a > 0) {
+          Alert.alert('Cannot delete', `Subject still has ${e} enrolment(s) and ${a} teacher assignment(s). Remove those first.`);
+          return;
+        }
+      } else if (kind === 'grade') {
+        // Extra safety: students can also be tied directly to grade_id
+        const { count } = await db
+          .from('students').select('id', { count: 'exact', head: true })
+          .eq('school_id', schoolId).eq('grade_id', row.id).eq('status', 'active');
+        if ((count ?? 0) > 0) {
+          Alert.alert('Cannot delete', `This grade has ${count} active student(s) tied to it. Move them first.`);
+          return;
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Error', `Could not verify dependents: ${e?.message ?? 'unknown error'}`);
+      return;
+    }
+
     Alert.alert(
       'Confirm delete',
       `Delete ${kind} "${row.name}"? This cannot be undone.`,
