@@ -3,11 +3,15 @@ import { supabase } from '../lib/supabase';
 
 const db = supabase as any;
 
+export type TimetableOwner = 'class' | 'teacher';
+
 export interface TimetableDocument {
   id: string;
   school_id: string;
+  owner_type: TimetableOwner;
   grade_id: string | null;
   stream_id: string | null;
+  staff_id: string | null;
   label: string;
   file_url: string;
   file_type: 'pdf' | 'image';
@@ -20,12 +24,15 @@ export interface TimetableDocument {
   // joined
   grade_name?: string;
   stream_name?: string;
+  staff_name?: string;
 }
 
 export interface UploadTimetableInput {
   school_id: string;
+  owner_type: TimetableOwner;
   grade_id?: string | null;
   stream_id?: string | null;
+  staff_id?: string | null;
   label: string;
   file_url: string;
   file_type: 'pdf' | 'image';
@@ -44,18 +51,21 @@ export function useTimetableDocuments(schoolId: string) {
       const { data, error } = await db
         .from('timetable_documents')
         .select(`
-          id, school_id, grade_id, stream_id, label, file_url, file_type,
+          id, school_id, owner_type, grade_id, stream_id, staff_id, label, file_url, file_type,
           file_name, file_size_bytes, effective_from, uploaded_by, is_current, created_at,
           grade:grades(name),
-          stream:streams(name)
+          stream:streams(name),
+          staff:staff(full_name)
         `)
         .eq('school_id', schoolId)
         .order('effective_from', { ascending: false });
       if (error) throw error;
       return ((data ?? []) as any[]).map((r) => ({
         ...r,
+        owner_type: r.owner_type ?? 'class',
         grade_name: r.grade?.name ?? null,
         stream_name: r.stream?.name ?? null,
+        staff_name: r.staff?.full_name ?? null,
       })) as TimetableDocument[];
     },
   });
@@ -85,18 +95,26 @@ export function useUploadTimetable() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UploadTimetableInput) => {
-      // Mark existing current record inactive first
-      if (input.grade_id || input.stream_id) {
-        let upd = db.from('timetable_documents').update({ is_current: false }).eq('school_id', input.school_id).eq('is_current', true);
+      // Mark existing current record inactive first (scoped per owner)
+      let upd = db.from('timetable_documents')
+        .update({ is_current: false })
+        .eq('school_id', input.school_id)
+        .eq('owner_type', input.owner_type)
+        .eq('is_current', true);
+      if (input.owner_type === 'class') {
         if (input.grade_id)  upd = upd.eq('grade_id', input.grade_id);
         if (input.stream_id) upd = upd.eq('stream_id', input.stream_id);
-        await upd;
+      } else if (input.owner_type === 'teacher' && input.staff_id) {
+        upd = upd.eq('staff_id', input.staff_id);
       }
+      await upd;
 
       const { data, error } = await db.from('timetable_documents').insert({
         school_id: input.school_id,
-        grade_id: input.grade_id ?? null,
-        stream_id: input.stream_id ?? null,
+        owner_type: input.owner_type,
+        grade_id: input.owner_type === 'class' ? (input.grade_id ?? null) : null,
+        stream_id: input.owner_type === 'class' ? (input.stream_id ?? null) : null,
+        staff_id: input.owner_type === 'teacher' ? (input.staff_id ?? null) : null,
         label: input.label.trim(),
         file_url: input.file_url,
         file_type: input.file_type,

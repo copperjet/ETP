@@ -57,7 +57,7 @@ function normaliseStudent(r: any): Student {
     stream_name: r.streams?.name ?? '',
     grade_name: r.streams?.grades?.name ?? '',
     section_name: r.streams?.grades?.school_sections?.name ?? '',
-    is_active: r.is_active ?? true,
+    is_active: (r.status ?? 'active') === 'active',
     enrolled_at: r.enrolled_at ?? null,
     emergency_contact_name: r.emergency_contact_name ?? null,
     emergency_contact_phone: r.emergency_contact_phone ?? null,
@@ -81,14 +81,14 @@ export function useAllStudents(schoolId: string, params?: {
         .from('students')
         .select(`
           id, full_name, student_number, date_of_birth, gender, photo_url,
-          stream_id, is_active, enrolled_at, emergency_contact_name, emergency_contact_phone,
+          stream_id, status, enrolled_at, emergency_contact_name, emergency_contact_phone,
           streams ( name, grades ( name, school_sections ( name ) ) )
         `)
         .eq('school_id', schoolId)
         .order('full_name');
 
       if (params?.streamId) q = q.eq('stream_id', params.streamId);
-      if (params?.activeOnly !== false) q = q.eq('is_active', true);
+      if (params?.activeOnly !== false) q = q.eq('status', 'active');
 
       const { data, error } = await q;
       if (error) throw error;
@@ -108,7 +108,7 @@ export function useStudentDetail(studentId: string | null, schoolId: string) {
         .from('students')
         .select(`
           id, full_name, student_number, date_of_birth, gender, photo_url,
-          stream_id, is_active, enrolled_at, emergency_contact_name, emergency_contact_phone,
+          stream_id, status, enrolled_at, emergency_contact_name, emergency_contact_phone,
           streams ( name, grades ( name, school_sections ( name ) ) )
         `)
         .eq('id', studentId)
@@ -135,14 +135,14 @@ export function useGlobalSearch(schoolId: string, query: string) {
           .from('students')
           .select('id, full_name, student_number, photo_url, streams(name, grades(name))')
           .eq('school_id', schoolId)
-          .eq('is_active', true)
+          .eq('status', 'active')
           .or(`full_name.ilike.%${q}%,student_number.ilike.%${q}%`)
           .limit(10),
         db
           .from('staff')
           .select('id, full_name, email, photo_url')
           .eq('school_id', schoolId)
-          .eq('is_active', true)
+          .eq('status', 'active')
           .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
           .limit(5),
       ]);

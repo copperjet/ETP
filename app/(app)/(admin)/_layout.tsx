@@ -4,7 +4,8 @@ import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { AppTabBar } from '../../../components/ui';
 
-const ADMIN_ROLES = ['admin', 'principal', 'coordinator', 'hod'];
+const ADMIN_ROLES = ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator', 'hod'];
+const SUPER_ROLES = ['super_admin', 'school_super_admin'];
 
 export default function AdminLayout() {
   const { colors } = useTheme();
@@ -12,6 +13,8 @@ export default function AdminLayout() {
   if (user && !ADMIN_ROLES.includes(user.activeRole)) {
     return <Redirect href="/" />;
   }
+
+  const isSuper = user ? SUPER_ROLES.includes(user.activeRole) : false;
 
   return (
     <Tabs
@@ -22,10 +25,25 @@ export default function AdminLayout() {
         tabBarInactiveTintColor: colors.icon,
       }}
     >
-      <Tabs.Screen name="home"     options={{ title: 'Home',     tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} /> }} />
-      <Tabs.Screen name="students" options={{ title: 'Students', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} /> }} />
-      <Tabs.Screen name="staff"    options={{ title: 'Staff',    tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'id-card' : 'id-card-outline'} size={22} color={color} /> }} />
-      <Tabs.Screen name="more"     options={{ title: 'More',     tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} /> }} />
+      <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} /> }} />
+
+      {/* Super Admin: Users hub. Admin: Students. */}
+      {isSuper ? (
+        <>
+          <Tabs.Screen name="users"    options={{ title: 'Users',    tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} /> }} />
+          <Tabs.Screen name="students" options={{ href: null }} />
+          <Tabs.Screen name="staff"    options={{ href: null }} />
+        </>
+      ) : (
+        <>
+          <Tabs.Screen name="students" options={{ title: 'Students', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} /> }} />
+          <Tabs.Screen name="users"    options={{ href: null }} />
+          <Tabs.Screen name="staff"    options={{ href: null }} />
+        </>
+      )}
+
+      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} /> }} />
+
       {/* Hidden screens */}
       <Tabs.Screen name="attendance-overview" options={{ href: null }} />
       <Tabs.Screen name="attendance-correct"  options={{ href: null }} />
@@ -37,6 +55,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="daybook"             options={{ href: null }} />
       <Tabs.Screen name="notification-log"    options={{ href: null }} />
       <Tabs.Screen name="calendar"            options={{ href: null }} />
+      <Tabs.Screen name="calendar-events"     options={{ href: null }} />
       <Tabs.Screen name="audit-log"           options={{ href: null }} />
       <Tabs.Screen name="marks-windows"       options={{ href: null }} />
       <Tabs.Screen name="semesters"           options={{ href: null }} />
@@ -47,6 +66,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="announcements"       options={{ href: null }} />
       <Tabs.Screen name="timetable-upload"    options={{ href: null }} />
       <Tabs.Screen name="school-onboarding"   options={{ href: null }} />
+      <Tabs.Screen name="school-structure"    options={{ href: null }} />
       <Tabs.Screen name="fee-structure"       options={{ href: null }} />
       <Tabs.Screen name="backup-settings"     options={{ href: null }} />
       <Tabs.Screen name="student-credentials" options={{ href: null }} />

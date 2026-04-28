@@ -189,11 +189,22 @@ export function useUpdateSchoolPlatform(schoolId: string) {
       primary_color?: string;
       secondary_color?: string;
       renewal_date?: string;
+      country?: string;
+      timezone?: string;
+      currency?: string;
     }) => {
+      // Edge function may not yet whitelist all fields; fall back to direct update if it 400s.
       const { error } = await (supabase as any).functions.invoke('update-school', {
         body: { school_id: schoolId, ...patch },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Fallback path — RLS allows super_admin to write directly.
+        const { error: directErr } = await (supabase as any)
+          .from('schools')
+          .update(patch)
+          .eq('id', schoolId);
+        if (directErr) throw new Error(directErr.message);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['platform-schools-overview'] });
@@ -201,4 +212,26 @@ export function useUpdateSchoolPlatform(schoolId: string) {
       qc.invalidateQueries({ queryKey: ['platform-metrics'] });
     },
   });
+}
+
+/**
+ * Upload a logo image (base64) to Supabase Storage and return the public URL.
+ * Caller is responsible for setting the URL on the school row afterwards.
+ */
+export async function uploadSchoolLogoFile(params: {
+  schoolId: string;
+  base64: string;
+  mimeType: string;
+}): Promise<string> {
+  const ext = params.mimeType === 'image/png' ? 'png' : params.mimeType === 'image/svg+xml' ? 'svg' : 'jpg';
+  const path = `${params.schoolId}/logo-${Date.now()}.${ext}`;
+  const byteArray = Uint8Array.from(atob(params.base64), (c) => c.charCodeAt(0));
+
+  const { error: uploadError } = await supabase.storage
+    .from('school-assets')
+    .upload(path, byteArray, { contentType: params.mimeType, upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage.from('school-assets').getPublicUrl(path);
+  return urlData.publicUrl;
 }

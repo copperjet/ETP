@@ -1,14 +1,16 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, ScrollView, StyleSheet, SafeAreaView, Pressable,
+  View, ScrollView, StyleSheet, SafeAreaView, Pressable, Image,
   TextInput, Animated, Alert, KeyboardAvoidingView, Platform,
   TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../../lib/theme';
 import { supabase } from '../../../lib/supabase';
 import { haptics } from '../../../lib/haptics';
+import { uploadSchoolLogoFile } from '../../../hooks/usePlatform';
 import {
   ThemedText, Button, ProgressBar,
 } from '../../../components/ui';
@@ -30,6 +32,9 @@ interface SchoolForm {
   primary_color: string;
   secondary_color: string;
   logo_url: string;
+  // logo picked but not yet uploaded — base64 + mime kept locally until school is created
+  logo_pending_base64: string | null;
+  logo_pending_mime: string | null;
   // Step 3 — Subscription
   subscription_plan: SubscriptionPlan;
   subscription_status: SubscriptionStatus;
@@ -42,6 +47,7 @@ interface SchoolForm {
 const BLANK: SchoolForm = {
   name: '', code: '', country: 'Zambia', timezone: 'Africa/Lusaka', currency: 'ZMW',
   primary_color: '#1B2A4A', secondary_color: '#E8A020', logo_url: '',
+  logo_pending_base64: null, logo_pending_mime: null,
   subscription_plan: 'growth', subscription_status: 'trial',
   admin_email: '', admin_name: '', admin_password: '',
 };
@@ -239,25 +245,82 @@ function Step1({ form, set }: { form: SchoolForm; set: (f: Partial<SchoolForm>) 
 }
 
 function Step2({ form, set }: { form: SchoolForm; set: (f: Partial<SchoolForm>) => void }) {
+  const { colors } = useTheme();
+
+  const pickLogo = async () => {
+    haptics.light();
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      base64: true,
+      allowsEditing: true,
+      aspect: [1, 1],
+      exif: false,
+    });
+    if (!result.canceled && result.assets[0]?.base64) {
+      const asset = result.assets[0];
+      set({
+        logo_pending_base64: asset.base64 ?? null,
+        logo_pending_mime: asset.mimeType ?? 'image/jpeg',
+        logo_url: '', // local picker takes priority over URL
+      });
+    }
+  };
+
+  const previewSource = form.logo_pending_base64
+    ? `data:${form.logo_pending_mime ?? 'image/jpeg'};base64,${form.logo_pending_base64}`
+    : (form.logo_url || null);
+
   return (
     <View style={styles.stepBody}>
       <ColorSwatch value={form.primary_color} onChange={(v) => set({ primary_color: v })} label="Primary colour" />
       <ColorSwatch value={form.secondary_color} onChange={(v) => set({ secondary_color: v })} label="Secondary / accent colour" />
+
       <View>
-        <FieldLabel label="Logo URL (optional)" />
+        <FieldLabel label="School logo" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+          <Pressable onPress={pickLogo} style={[styles.logoBox, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
+            {previewSource ? (
+              <Image source={{ uri: previewSource }} style={{ width: 76, height: 76, borderRadius: 12 }} resizeMode="contain" />
+            ) : (
+              <>
+                <Ionicons name="image-outline" size={26} color={colors.textMuted} />
+                <ThemedText variant="caption" color="muted" style={{ marginTop: 4 }}>Tap to pick</ThemedText>
+              </>
+            )}
+          </Pressable>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Pressable onPress={pickLogo} style={[styles.linkBtn, { borderColor: colors.brand.primary }]}>
+              <Ionicons name="cloud-upload-outline" size={14} color={colors.brand.primary} />
+              <ThemedText style={{ color: colors.brand.primary, fontWeight: '600', fontSize: 13, marginLeft: 4 }}>
+                {form.logo_pending_base64 ? 'Change image' : 'Upload from device'}
+              </ThemedText>
+            </Pressable>
+            {form.logo_pending_base64 && (
+              <Pressable onPress={() => set({ logo_pending_base64: null, logo_pending_mime: null })}>
+                <ThemedText style={{ color: '#DC2626', fontSize: 12, fontWeight: '600' }}>Remove</ThemedText>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        <ThemedText variant="caption" color="muted" style={{ marginTop: Spacing.sm, marginBottom: 4 }}>
+          Or paste a public URL:
+        </ThemedText>
         <InlineInput
           value={form.logo_url}
-          onChangeText={(t) => set({ logo_url: t })}
+          onChangeText={(t) => set({ logo_url: t, logo_pending_base64: t ? null : form.logo_pending_base64 })}
           placeholder="https://cdn.school.com/logo.png"
           autoCapitalize="none"
           keyboardType="url"
         />
-        <ThemedText variant="caption" color="muted" style={{ marginTop: 4 }}>
-          Public URL to a PNG or SVG. Leave blank to use school initials.
-        </ThemedText>
       </View>
+
       {/* Live preview */}
       <View style={[styles.previewCard, { backgroundColor: form.primary_color }]}>
+        {previewSource && (
+          <Image source={{ uri: previewSource }} style={{ width: 56, height: 56, borderRadius: 8, marginBottom: 8 }} resizeMode="contain" />
+        )}
         <ThemedText style={{ color: '#fff', fontWeight: '800', fontSize: 20 }}>{form.name || 'School Name'}</ThemedText>
         <View style={[styles.previewBadge, { backgroundColor: form.secondary_color }]}>
           <ThemedText style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{form.code || 'CODE'}</ThemedText>
@@ -492,7 +555,7 @@ export default function SchoolOnboarding() {
     setError('');
 
     try {
-      // 1. Create school record
+      // 1. Create school record (logo URL is set later if a local image was picked)
       const { data: school, error: schoolErr } = await (supabase as any)
         .from('schools')
         .insert({
@@ -511,6 +574,21 @@ export default function SchoolOnboarding() {
         .single();
 
       if (schoolErr) throw new Error(schoolErr.message);
+
+      // 1b. Upload pending logo (if user picked a file rather than pasted a URL)
+      if (form.logo_pending_base64) {
+        try {
+          const url = await uploadSchoolLogoFile({
+            schoolId: school.id,
+            base64: form.logo_pending_base64,
+            mimeType: form.logo_pending_mime ?? 'image/jpeg',
+          });
+          await (supabase as any).from('schools').update({ logo_url: url }).eq('id', school.id);
+        } catch (logoErr: any) {
+          console.warn('[onboarding] logo upload failed:', logoErr?.message);
+          // Non-fatal — school is still created, admin can re-upload later.
+        }
+      }
 
       // 2. Create first admin via edge function (needs service role on backend)
       const { error: fnErr } = await (supabase as any).functions.invoke('create-school-admin', {
@@ -675,4 +753,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, gap: Spacing.sm,
   },
   backLink: { alignItems: 'center', paddingVertical: Spacing.xs },
+  logoBox: {
+    width: 84, height: 84, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  linkBtn: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.md, paddingVertical: 8,
+    borderRadius: Radius.full, borderWidth: 1.5,
+  },
 });

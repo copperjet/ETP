@@ -33,31 +33,33 @@ export const ROLE_ACCESS: Record<string, AdminRole[]> = {
   // Platform admin only
   onboard_school: ['super_admin'],
 
-  // School-level governance (super_admin = platform; school_super_admin = school owner).
-  school_structure: ['super_admin', 'school_super_admin'],
-  school_settings:  ['super_admin', 'school_super_admin'],
+  // ── Super Admin governance (school-wide, not day-to-day) ────────────────
+  // school_super_admin owns these; super_admin (platform) inherits.
+  users:             ['super_admin', 'school_super_admin'], // Users hub (Staff/Students/Parents)
+  school_structure:  ['super_admin', 'school_super_admin'],
+  school_settings:   ['super_admin', 'school_super_admin'],
+  staff:             ['super_admin', 'school_super_admin'],
+  parents:           ['super_admin', 'school_super_admin'],
+  semesters:         ['super_admin', 'school_super_admin'], // legacy key, kept for back-compat
+  calendar_events:   ['super_admin', 'school_super_admin'], // new combined screen
+  promotion:         ['super_admin', 'school_super_admin'],
+  audit:             ['super_admin', 'school_super_admin'],
+  notification_log:  ['super_admin', 'school_super_admin'],
+  backup:            ['super_admin', 'school_super_admin'],
+  marks_windows:     ['super_admin', 'school_super_admin', 'hod'],
 
-  // Full admin access
-  students: ['super_admin', 'school_super_admin', 'admin'],
-  staff: ['super_admin', 'school_super_admin', 'admin'],
-  parents: ['super_admin', 'school_super_admin', 'admin'],
-  assignments: ['super_admin', 'school_super_admin', 'admin'],
-  timetable: ['super_admin', 'school_super_admin', 'admin'],
-  semesters: ['super_admin', 'school_super_admin', 'admin'],
-  promotion: ['super_admin', 'school_super_admin', 'admin'],
-  audit: ['super_admin', 'school_super_admin', 'admin'],
-  fee_structure: ['super_admin', 'school_super_admin', 'admin'],
-  backup: ['super_admin', 'school_super_admin', 'admin'],
+  // ── Admin (day-to-day operations) ───────────────────────────────────────
+  students:          ['super_admin', 'school_super_admin', 'admin'], // visible in Users hub for super; Students tab for admin
+  assignments:       ['super_admin', 'school_super_admin', 'admin'],
+  timetable:         ['super_admin', 'school_super_admin', 'admin'],
+  reports:           ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator', 'hod'],
+  marks_matrix:      ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator', 'hod'],
+  daybook:           ['admin', 'principal', 'coordinator', 'hod'],
+  announcements:     ['admin', 'principal', 'coordinator'],
+  attendance:        ['admin', 'principal', 'coordinator'],
 
-  // Academic leadership (all academic roles)
-  marks_windows: ['super_admin', 'school_super_admin', 'admin', 'hod'],
-  reports: ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator', 'hod'],
-  attendance: ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator'],
-  marks_matrix: ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator', 'hod'],
-  daybook: ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator', 'hod'],
-  announcements: ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator'],
-  calendar: ['super_admin', 'school_super_admin', 'admin', 'principal', 'coordinator'],
-  notification_log: ['super_admin', 'school_super_admin', 'admin', 'principal'],
+  // ── Finance only ────────────────────────────────────────────────────────
+  fee_structure:     ['super_admin'], // platform admin retains visibility; school finance has its own dashboard
 };
 
 /**

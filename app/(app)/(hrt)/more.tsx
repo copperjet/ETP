@@ -62,7 +62,8 @@ export default function HRTMore() {
       title: 'School',
       items: [
         { icon: 'megaphone-outline', label: 'Announcements', sublabel: 'School announcements & updates', onPress: () => router.push('/(app)/announcements' as any) },
-        { icon: 'calendar-outline',  label: 'Timetable',     sublabel: 'View class timetable',           onPress: () => router.push('/(app)/timetable' as any) },
+        { icon: 'calendar-outline',  label: 'Class Timetable', sublabel: 'My class timetable',             onPress: () => router.push('/(app)/timetable?owner=class' as any) },
+        { icon: 'person-outline',    label: 'My Timetable',    sublabel: 'My personal teaching schedule',  onPress: () => router.push('/(app)/timetable?owner=teacher' as any) },
       ],
     },
     {

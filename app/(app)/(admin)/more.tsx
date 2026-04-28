@@ -77,29 +77,31 @@ export default function AdminMore() {
       ],
     }] : []),
 
-    // School management — filtered per role
+    // ── Governance — Super Admin only ────────────────────────────────────
     {
-      title: 'Management',
+      title: 'Governance',
       items: [
-        ...(can(role, 'school_structure') ? [{ icon: 'business-outline' as IoniconsName,          label: 'School Structure',     sublabel: 'Sections, grades, streams, subjects', onPress: () => router.push('/(app)/(admin)/school-structure' as any) }] : []),
-        ...(can(role, 'attendance')       ? [{ icon: 'checkbox-outline' as IoniconsName,         label: 'Attendance Overview',  sublabel: "Today's submission status",        onPress: () => router.push('/(app)/(admin)/attendance-overview' as any) }] : []),
-        ...(can(role, 'marks_matrix')     ? [{ icon: 'grid-outline' as IoniconsName,              label: 'Marks Matrix',         sublabel: 'Completion overview by class',     onPress: () => router.push('/(app)/(admin)/marks-matrix' as any) }] : []),
-        ...(can(role, 'reports')          ? [{ icon: 'document-text-outline' as IoniconsName,     label: 'Reports Approval',     sublabel: 'Pending & released reports',       onPress: () => router.push('/(app)/(admin)/reports' as any) }] : []),
-        ...(can(role, 'staff')            ? [{ icon: 'people-outline' as IoniconsName,             label: 'Manage Staff',         sublabel: 'View, add, assign roles',          onPress: () => router.push('/(app)/(admin)/staff' as any) }] : []),
-        ...(can(role, 'parents')          ? [{ icon: 'people-circle-outline' as IoniconsName,     label: 'Manage Parents',       sublabel: 'Add parents, link to students',    onPress: () => router.push('/(app)/(admin)/parents' as any) }] : []),
-        ...(can(role, 'assignments')      ? [{ icon: 'git-branch-outline' as IoniconsName,        label: 'HRT / ST Assignments', sublabel: 'Assign class teachers & subjects',  onPress: () => router.push('/(app)/(admin)/assignments' as any) }] : []),
-        ...(can(role, 'daybook')          ? [{ icon: 'book-outline' as IoniconsName,              label: 'Day Book',             sublabel: 'School-wide student notes',        onPress: () => router.push('/(app)/(admin)/daybook' as any) }] : []),
-        ...(can(role, 'announcements')    ? [{ icon: 'megaphone-outline' as IoniconsName,         label: 'Announcements',        sublabel: 'Compose & send to school/groups',  onPress: () => router.push('/(app)/(admin)/announcements' as any) }] : []),
-        ...(can(role, 'calendar')         ? [{ icon: 'calendar-outline' as IoniconsName,          label: 'Academic Calendar',    sublabel: 'Events, holidays & exam periods',  onPress: () => router.push('/(app)/(admin)/calendar' as any) }] : []),
-        ...(can(role, 'timetable')        ? [{ icon: 'grid-outline' as IoniconsName,              label: 'Timetable Upload',     sublabel: 'Upload PDF/image timetables',      onPress: () => router.push('/(app)/(admin)/timetable-upload' as any) }] : []),
-        ...(can(role, 'notification_log') ? [{ icon: 'notifications-outline' as IoniconsName,    label: 'Notification Log',     sublabel: 'All push & in-app notifications',  onPress: () => router.push('/(app)/(admin)/notification-log' as any) }] : []),
-        ...(can(role, 'audit')            ? [{ icon: 'shield-checkmark-outline' as IoniconsName,  label: 'Audit Log',            sublabel: 'Filterable action history',        onPress: () => router.push('/(app)/(admin)/audit-log' as any) }] : []),
-        ...(can(role, 'marks_windows')    ? [{ icon: 'create-outline' as IoniconsName,            label: 'Marks Windows',        sublabel: 'Open / close entry windows',       onPress: () => router.push('/(app)/(admin)/marks-windows' as any) }] : []),
-        ...(can(role, 'semesters')        ? [{ icon: 'calendar-number-outline' as IoniconsName,   label: 'Semesters',            sublabel: 'Manage & activate semesters',      onPress: () => router.push('/(app)/(admin)/semesters' as any) }] : []),
-        ...(can(role, 'promotion')        ? [{ icon: 'arrow-up-circle-outline' as IoniconsName,   label: 'Promotion Wizard',     sublabel: 'Year-end promote / graduate',      onPress: () => router.push('/(app)/(admin)/promotion-wizard' as any) }] : []),
-        ...(can(role, 'fee_structure')   ? [{ icon: 'cash-outline' as IoniconsName,              label: 'Fee Structure',        sublabel: 'Manage fees & categories',         onPress: () => router.push('/(app)/(admin)/fee-structure' as any) }] : []),
-        ...(can(role, 'backup')           ? [{ icon: 'cloud-upload-outline' as IoniconsName,     label: 'Backup to Drive',      sublabel: 'Export data to Google Drive',      onPress: () => router.push('/(app)/(admin)/backup-settings' as any) }] : []),
-      ].filter(Boolean),
+        ...(can(role, 'school_structure') ? [{ icon: 'business-outline' as IoniconsName,         label: 'School Structure',    sublabel: 'Sections, grades, streams, subjects', onPress: () => router.push('/(app)/(admin)/school-structure' as any) }] : []),
+        ...(can(role, 'calendar_events')  ? [{ icon: 'calendar-outline' as IoniconsName,         label: 'Calendar & Events',   sublabel: 'Semesters, holidays, breaks, events', onPress: () => router.push('/(app)/(admin)/calendar-events' as any) }] : []),
+        ...(can(role, 'promotion')        ? [{ icon: 'arrow-up-circle-outline' as IoniconsName,  label: 'Promotion Wizard',    sublabel: 'Year-end promote / graduate',         onPress: () => router.push('/(app)/(admin)/promotion-wizard' as any) }] : []),
+        ...(can(role, 'marks_windows')    ? [{ icon: 'create-outline' as IoniconsName,           label: 'Marks Windows',       sublabel: 'Open / close entry windows',          onPress: () => router.push('/(app)/(admin)/marks-windows' as any) }] : []),
+        ...(can(role, 'audit')            ? [{ icon: 'shield-checkmark-outline' as IoniconsName, label: 'Audit Log',           sublabel: 'Filterable action history',           onPress: () => router.push('/(app)/(admin)/audit-log' as any) }] : []),
+        ...(can(role, 'notification_log') ? [{ icon: 'notifications-outline' as IoniconsName,    label: 'Notification Log',    sublabel: 'All push & in-app notifications',     onPress: () => router.push('/(app)/(admin)/notification-log' as any) }] : []),
+        ...(can(role, 'backup')           ? [{ icon: 'cloud-upload-outline' as IoniconsName,     label: 'Backup to Drive',     sublabel: 'Export data to Google Drive',         onPress: () => router.push('/(app)/(admin)/backup-settings' as any) }] : []),
+      ],
+    },
+
+    // ── Operations — Admin (and inherited by Super Admin) ───────────────
+    {
+      title: 'Operations',
+      items: [
+        ...(can(role, 'assignments')   ? [{ icon: 'git-branch-outline' as IoniconsName,    label: 'HRT / ST Assignments', sublabel: 'Assign class teachers & subjects', onPress: () => router.push('/(app)/(admin)/assignments' as any) }] : []),
+        ...(can(role, 'daybook')       ? [{ icon: 'book-outline' as IoniconsName,          label: 'Day Book',             sublabel: 'School-wide student notes',        onPress: () => router.push('/(app)/(admin)/daybook' as any) }] : []),
+        ...(can(role, 'announcements') ? [{ icon: 'megaphone-outline' as IoniconsName,     label: 'Announcements',        sublabel: 'Compose & send to school/groups',  onPress: () => router.push('/(app)/(admin)/announcements' as any) }] : []),
+        ...(can(role, 'timetable')     ? [{ icon: 'grid-outline' as IoniconsName,          label: 'Timetable Upload',     sublabel: 'Class & teacher timetables',       onPress: () => router.push('/(app)/(admin)/timetable-upload' as any) }] : []),
+        ...(can(role, 'reports')       ? [{ icon: 'document-text-outline' as IoniconsName, label: 'Reports Approval',     sublabel: 'Pending & released reports',       onPress: () => router.push('/(app)/(admin)/reports' as any) }] : []),
+        ...(can(role, 'marks_matrix')  ? [{ icon: 'apps-outline' as IoniconsName,          label: 'Marks Matrix',         sublabel: 'Completion overview by class',     onPress: () => router.push('/(app)/(admin)/marks-matrix' as any) }] : []),
+      ],
     },
 
     // Public surfaces

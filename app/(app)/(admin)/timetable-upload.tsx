@@ -32,19 +32,23 @@ const db = supabase as any;
 interface Grade  { id: string; name: string; }
 interface Stream { id: string; name: string; grade_id: string; }
 
+interface StaffMember { id: string; full_name: string; }
+
 function useGradesAndStreams(schoolId: string) {
-  return useQuery<{ grades: Grade[]; streams: Stream[] }>({
-    queryKey: ['grades-streams', schoolId],
+  return useQuery<{ grades: Grade[]; streams: Stream[]; staff: StaffMember[] }>({
+    queryKey: ['grades-streams-staff', schoolId],
     enabled: !!schoolId,
     staleTime: 1000 * 60 * 10,
     queryFn: async () => {
-      const [gr, st] = await Promise.all([
+      const [gr, st, sf] = await Promise.all([
         db.from('grades').select('id, name').eq('school_id', schoolId).order('order_index'),
         db.from('streams').select('id, name, grade_id').eq('school_id', schoolId).order('name'),
+        db.from('staff').select('id, full_name').eq('school_id', schoolId).eq('status', 'active').order('full_name'),
       ]);
       return {
-        grades:  (gr.data  ?? []) as Grade[],
+        grades:  (gr.data ?? []) as Grade[],
         streams: (st.data ?? []) as Stream[],
+        staff:   (sf.data ?? []) as StaffMember[],
       };
     },
   });
@@ -68,8 +72,10 @@ export default function TimetableUploadScreen() {
   const deleteMutation = useDeleteTimetable(schoolId);
 
   // Form state
+  const [ownerType, setOwnerType] = useState<'class' | 'teacher'>('class');
   const [selectedGradeId, setSelectedGradeId] = useState<string | null>(null);
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [label, setLabel] = useState('');
   const [effectiveFrom, setEffectiveFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [uploading, setUploading] = useState(false);
@@ -79,6 +85,10 @@ export default function TimetableUploadScreen() {
   const handlePickAndUpload = useCallback(async () => {
     if (!label.trim()) {
       Alert.alert('Label required', 'Enter a label before uploading.');
+      return;
+    }
+    if (ownerType === 'teacher' && !selectedStaffId) {
+      Alert.alert('Teacher required', 'Pick a teacher before uploading their timetable.');
       return;
     }
 
@@ -109,8 +119,10 @@ export default function TimetableUploadScreen() {
 
       await uploadMutation.mutateAsync({
         school_id: schoolId,
-        grade_id: selectedGradeId,
-        stream_id: selectedStreamId,
+        owner_type: ownerType,
+        grade_id: ownerType === 'class' ? selectedGradeId : null,
+        stream_id: ownerType === 'class' ? selectedStreamId : null,
+        staff_id: ownerType === 'teacher' ? selectedStaffId : null,
         label: label.trim(),
         file_url: publicUrl,
         file_type: fileType,
@@ -129,7 +141,7 @@ export default function TimetableUploadScreen() {
     } finally {
       setUploading(false);
     }
-  }, [label, selectedGradeId, selectedStreamId, effectiveFrom, schoolId, user?.id, uploadMutation]);
+  }, [label, ownerType, selectedGradeId, selectedStreamId, selectedStaffId, effectiveFrom, schoolId, user?.id, uploadMutation]);
 
   const handleDelete = useCallback((doc: TimetableDocument) => {
     Alert.alert('Delete Timetable', `Remove "${doc.label}"?`, [
@@ -155,52 +167,107 @@ export default function TimetableUploadScreen() {
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <ThemedText variant="h4" style={{ marginBottom: Spacing.md }}>Upload New Timetable</ThemedText>
 
+          {/* Owner toggle: Class vs Teacher */}
+          <ThemedText variant="label" color="muted" style={styles.fieldLabel}>TIMETABLE TYPE</ThemedText>
+          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
+            {(['class', 'teacher'] as const).map((t) => (
+              <TouchableOpacity
+                key={t}
+                onPress={() => { haptics.selection(); setOwnerType(t); }}
+                style={[styles.toggleBtn, {
+                  backgroundColor: ownerType === t ? colors.brand.primary : colors.surfaceSecondary,
+                  borderColor: ownerType === t ? colors.brand.primary : colors.border,
+                }]}
+              >
+                <Ionicons
+                  name={t === 'class' ? 'school-outline' : 'person-outline'}
+                  size={14}
+                  color={ownerType === t ? '#fff' : colors.textMuted}
+                />
+                <ThemedText style={{ color: ownerType === t ? '#fff' : colors.textPrimary, fontWeight: '700', marginLeft: 6, fontSize: 13 }}>
+                  {t === 'class' ? 'Class' : 'Teacher'}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Label */}
           <ThemedText variant="label" color="muted" style={styles.fieldLabel}>LABEL</ThemedText>
           <TextInput
             value={label}
             onChangeText={setLabel}
-            placeholder="e.g. Grade 10A — Term 1 2026"
+            placeholder={ownerType === 'class' ? 'e.g. Grade 10A — Term 1 2026' : 'e.g. Mr Banda — Term 1 2026'}
             placeholderTextColor={colors.textMuted}
             style={[styles.input, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]}
           />
 
-          {/* Grade picker */}
-          <ThemedText variant="label" color="muted" style={[styles.fieldLabel, { marginTop: Spacing.md }]}>GRADE (OPTIONAL)</ThemedText>
-          {metaLoading ? (
-            <Skeleton width="100%" height={36} radius={Radius.md} />
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.xs }}>
-              <TouchableOpacity
-                onPress={() => { setSelectedGradeId(null); setSelectedStreamId(null); }}
-                style={[styles.chip, {
-                  backgroundColor: !selectedGradeId ? colors.brand.primary + '18' : colors.surfaceSecondary,
-                  borderColor: !selectedGradeId ? colors.brand.primary : colors.border,
-                }]}
-              >
-                <ThemedText variant="caption" style={{ color: !selectedGradeId ? colors.brand.primary : colors.textMuted, fontWeight: !selectedGradeId ? '700' : '400', fontSize: 11 }}>
-                  All Grades
-                </ThemedText>
-              </TouchableOpacity>
-              {(meta?.grades ?? []).map((g) => (
-                <TouchableOpacity
-                  key={g.id}
-                  onPress={() => { setSelectedGradeId(g.id); setSelectedStreamId(null); }}
-                  style={[styles.chip, {
-                    backgroundColor: selectedGradeId === g.id ? colors.brand.primary + '18' : colors.surfaceSecondary,
-                    borderColor: selectedGradeId === g.id ? colors.brand.primary : colors.border,
-                  }]}
-                >
-                  <ThemedText variant="caption" style={{ color: selectedGradeId === g.id ? colors.brand.primary : colors.textMuted, fontWeight: selectedGradeId === g.id ? '700' : '400', fontSize: 11 }}>
-                    {g.name}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+          {/* Teacher picker (only when owner=teacher) */}
+          {ownerType === 'teacher' && (
+            <>
+              <ThemedText variant="label" color="muted" style={[styles.fieldLabel, { marginTop: Spacing.md }]}>TEACHER *</ThemedText>
+              {metaLoading ? (
+                <Skeleton width="100%" height={36} radius={Radius.md} />
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.xs }}>
+                  {(meta?.staff ?? []).map((s) => (
+                    <TouchableOpacity
+                      key={s.id}
+                      onPress={() => setSelectedStaffId(s.id)}
+                      style={[styles.chip, {
+                        backgroundColor: selectedStaffId === s.id ? colors.brand.primary + '18' : colors.surfaceSecondary,
+                        borderColor: selectedStaffId === s.id ? colors.brand.primary : colors.border,
+                      }]}
+                    >
+                      <ThemedText variant="caption" style={{ color: selectedStaffId === s.id ? colors.brand.primary : colors.textMuted, fontSize: 11, fontWeight: selectedStaffId === s.id ? '700' : '400' }}>
+                        {s.full_name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </>
+          )}
+
+          {/* Grade + Stream pickers — class timetables only */}
+          {ownerType === 'class' && (
+            <>
+              <ThemedText variant="label" color="muted" style={[styles.fieldLabel, { marginTop: Spacing.md }]}>GRADE (OPTIONAL)</ThemedText>
+              {metaLoading ? (
+                <Skeleton width="100%" height={36} radius={Radius.md} />
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.xs }}>
+                  <TouchableOpacity
+                    onPress={() => { setSelectedGradeId(null); setSelectedStreamId(null); }}
+                    style={[styles.chip, {
+                      backgroundColor: !selectedGradeId ? colors.brand.primary + '18' : colors.surfaceSecondary,
+                      borderColor: !selectedGradeId ? colors.brand.primary : colors.border,
+                    }]}
+                  >
+                    <ThemedText variant="caption" style={{ color: !selectedGradeId ? colors.brand.primary : colors.textMuted, fontWeight: !selectedGradeId ? '700' : '400', fontSize: 11 }}>
+                      All Grades
+                    </ThemedText>
+                  </TouchableOpacity>
+                  {(meta?.grades ?? []).map((g) => (
+                    <TouchableOpacity
+                      key={g.id}
+                      onPress={() => { setSelectedGradeId(g.id); setSelectedStreamId(null); }}
+                      style={[styles.chip, {
+                        backgroundColor: selectedGradeId === g.id ? colors.brand.primary + '18' : colors.surfaceSecondary,
+                        borderColor: selectedGradeId === g.id ? colors.brand.primary : colors.border,
+                      }]}
+                    >
+                      <ThemedText variant="caption" style={{ color: selectedGradeId === g.id ? colors.brand.primary : colors.textMuted, fontWeight: selectedGradeId === g.id ? '700' : '400', fontSize: 11 }}>
+                        {g.name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </>
           )}
 
           {/* Stream picker */}
-          {selectedGradeId && streamsForGrade.length > 0 && (
+          {ownerType === 'class' && selectedGradeId && streamsForGrade.length > 0 && (
             <>
               <ThemedText variant="label" color="muted" style={[styles.fieldLabel, { marginTop: Spacing.md }]}>STREAM (OPTIONAL)</ThemedText>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.xs }}>
@@ -330,6 +397,7 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 10, letterSpacing: 0.5, marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, fontSize: 14 },
   chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1 },
+  toggleBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1.5 },
   uploadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.lg, marginTop: Spacing.base },
   docRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: Spacing.md },
   docIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },

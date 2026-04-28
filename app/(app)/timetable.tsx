@@ -9,7 +9,7 @@ import {
   Image, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { format } from 'date-fns';
 import { useTheme } from '../../lib/theme';
@@ -26,11 +26,22 @@ export default function TimetableViewer() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId ?? '';
+  const { owner } = useLocalSearchParams<{ owner?: 'class' | 'teacher' }>();
+  const ownerFilter = owner === 'teacher' ? 'teacher' : 'class';
 
   const { data: docs = [], isLoading, isError, refetch } = useTimetableDocuments(schoolId);
 
+  // Filter by owner type. For teacher view, also filter to current user's staff_id when known.
+  const filteredDocs = docs.filter((d) => {
+    if ((d.owner_type ?? 'class') !== ownerFilter) return false;
+    if (ownerFilter === 'teacher' && user?.staffId) {
+      return d.staff_id === user.staffId;
+    }
+    return true;
+  });
+
   // Show current docs first, then historical
-  const currentDocs = docs.filter((d) => d.is_current);
+  const currentDocs = filteredDocs.filter((d) => d.is_current);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedDoc = selectedId
