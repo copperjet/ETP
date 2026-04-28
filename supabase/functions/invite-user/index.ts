@@ -13,6 +13,7 @@
  * The user is forced to change the password on first login (gate
  * in app/(app)/_layout.tsx checks user_metadata.must_reset_password).
  */
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 // 12-char temp password: 8 letters + 4 digits, easy to read out (no I/O/0/1).
 function generateTempPassword(): string {
@@ -23,7 +24,6 @@ function generateTempPassword(): string {
   for (let i = 0; i < 4; i++) out += digits[Math.floor(Math.random() * digits.length)];
   return out;
 }
-import { createClient } from "npm:@supabase/supabase-js@2";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

@@ -6,6 +6,7 @@ export default function AuthLayout() {
       <Stack.Screen name="school-code" />
       <Stack.Screen name="login" />
       <Stack.Screen name="platform-login" />
+      <Stack.Screen name="forgot-password" />
     </Stack>
   );
 }
