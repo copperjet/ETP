@@ -104,7 +104,9 @@ export default function TimetableViewer() {
                       variant="caption"
                       style={{ color: active ? colors.brand.primary : colors.textMuted, fontWeight: active ? '700' : '400', fontSize: 11 }}
                     >
-                      {doc.grade_name ?? 'School'}{doc.stream_name ? ` · ${doc.stream_name}` : ''}
+                      {doc.owner_type === 'teacher'
+                        ? (doc.staff_name ?? 'Teacher')
+                        : `${doc.grade_name ?? 'School'}${doc.stream_name ? ` · ${doc.stream_name}` : ''}`}
                     </ThemedText>
                   </TouchableOpacity>
                 );

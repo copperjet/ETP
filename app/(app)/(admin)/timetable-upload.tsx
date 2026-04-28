@@ -361,7 +361,9 @@ export default function TimetableUploadScreen() {
                 <View style={{ flex: 1, gap: 2 }}>
                   <ThemedText variant="body" style={{ fontWeight: '600' }} numberOfLines={1}>{doc.label}</ThemedText>
                   <ThemedText variant="caption" color="muted">
-                    {doc.grade_name ? `${doc.grade_name}${doc.stream_name ? ` · ${doc.stream_name}` : ''}` : 'Whole School'}
+                    {doc.owner_type === 'teacher'
+                      ? `Teacher · ${doc.staff_name ?? '—'}`
+                      : (doc.grade_name ? `${doc.grade_name}${doc.stream_name ? ` · ${doc.stream_name}` : ''}` : 'Whole School')}
                     {' · '}
                     {format(new Date(doc.effective_from), 'dd MMM yyyy')}
                     {doc.file_size_bytes ? ` · ${formatBytes(doc.file_size_bytes)}` : ''}

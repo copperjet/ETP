@@ -71,19 +71,30 @@ export function useTimetableDocuments(schoolId: string) {
   });
 }
 
-export function useCurrentTimetable(schoolId: string, gradeId?: string | null, streamId?: string | null) {
+export function useCurrentTimetable(
+  schoolId: string,
+  gradeId?: string | null,
+  streamId?: string | null,
+  ownerType: TimetableOwner = 'class',
+  staffId?: string | null,
+) {
   return useQuery<TimetableDocument | null>({
-    queryKey: ['timetable-current', schoolId, gradeId, streamId],
+    queryKey: ['timetable-current', schoolId, ownerType, gradeId, streamId, staffId ?? null],
     enabled: !!schoolId,
     staleTime: 1000 * 60 * 10,
     queryFn: async () => {
       let q = db
         .from('timetable_documents')
-        .select('id, school_id, grade_id, stream_id, label, file_url, file_type, file_name, effective_from, is_current, created_at')
+        .select('id, school_id, owner_type, grade_id, stream_id, staff_id, label, file_url, file_type, file_name, effective_from, is_current, created_at')
         .eq('school_id', schoolId)
+        .eq('owner_type', ownerType)
         .eq('is_current', true);
-      if (gradeId)  q = q.eq('grade_id', gradeId);
-      if (streamId) q = q.eq('stream_id', streamId);
+      if (ownerType === 'class') {
+        if (gradeId)  q = q.eq('grade_id', gradeId);
+        if (streamId) q = q.eq('stream_id', streamId);
+      } else if (ownerType === 'teacher' && staffId) {
+        q = q.eq('staff_id', staffId);
+      }
       const { data, error } = await q.limit(1).maybeSingle();
       if (error) throw error;
       return (data as TimetableDocument | null);

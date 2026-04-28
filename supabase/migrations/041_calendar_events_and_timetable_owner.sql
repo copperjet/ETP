@@ -28,18 +28,20 @@ drop policy if exists "calendar_events tenant read"    on public.calendar_events
 drop policy if exists "calendar_events admin write"    on public.calendar_events;
 
 create policy "calendar_events tenant read"
-  on public.calendar_events for select
-  using (school_id = public.current_school_id());
+  on public.calendar_events for select to authenticated
+  using (
+    school_id = (auth.jwt()->'app_metadata'->>'school_id')::uuid
+  );
 
 create policy "calendar_events admin write"
-  on public.calendar_events for all
+  on public.calendar_events for all to authenticated
   using (
-    school_id = public.current_school_id()
-    and public.has_any_role(array['super_admin','school_super_admin','admin'])
+    school_id = (auth.jwt()->'app_metadata'->>'school_id')::uuid
+    and (auth.jwt()->'app_metadata'->'roles') ?| array['super_admin','school_super_admin','admin','principal','coordinator']
   )
   with check (
-    school_id = public.current_school_id()
-    and public.has_any_role(array['super_admin','school_super_admin','admin'])
+    school_id = (auth.jwt()->'app_metadata'->>'school_id')::uuid
+    and (auth.jwt()->'app_metadata'->'roles') ?| array['super_admin','school_super_admin','admin','principal','coordinator']
   );
 
 
