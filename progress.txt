@@ -1,0 +1,76 @@
+============================================================
+eScholr – PROGRESS NOTES  (updated: 2026-04-28)
+============================================================
+
+── LAST COMPLETED ──────────────────────────────────────────
+Migration 043  (043_parent_access_and_integrity.sql)
+  - SECURITY DEFINER helpers: current_parent_id(), current_parent_student_ids()
+  - Parent read-only RLS on: students, homework_assignments,
+    homework_submissions, day_book_entries (send_to_parent only),
+    invoices, invoice_items, finance_records, payment_transactions,
+    emergency_contacts, subject_enrollments
+  - Trigger: spl_align_school  → forces student_parent_links.school_id = student.school_id
+  - Indexes: spl(school,student), fee_schedules(grade,stream),
+    homework(subject), homework(assigned_by), messages(student,created)
+  STATUS: committed + pushed to master
+
+── MIGRATIONS APPLIED ──────────────────────────────────────
+001–039  core schema (schools, academic structure, finance, marks,
+         attendance, daybook, homework, messaging, timetable, etc.)
+040      school_super_admin role + subjects.code column
+041      calendar_events table + timetable_documents owner_type/staff_id
+         RLS policies fixed to use JWT app_metadata (no missing helpers)
+042      timetable partial unique indexes (class vs teacher),
+         RLS widened to school_super_admin,
+         school-assets storage bucket + RLS
+043      parent read RLS + integrity helpers + hot indexes   ← latest
+
+── UI / APP CHANGES (recent, all committed) ────────────────
+- timetable.tsx         owner_type + staff_id filter; teacher label fix
+- timetable-upload.tsx  class/teacher toggle, teacher picker, label fix
+- useTimetable.ts       hook updated for owner_type/staff_id
+- (hrt)/more.tsx        "Class Timetable" + "My Timetable" menu items
+- (st)/more.tsx         same for ST role
+- (admin)/more.tsx      Governance / Operations split by role
+- (admin)/users.tsx     Users hub (Staff | Students | Parents)
+- (admin)/school-structure.tsx  full CRUD + delete guards
+- (parent)/inbox.tsx    fixed parentId bug (was using staffId)
+- roleScope.ts          updated role access matrix
+
+── WHERE TO BEGIN NEXT ─────────────────────────────────────
+Apply migrations 041-043 to Supabase production:
+  supabase db push   OR paste each file into SQL editor in order.
+
+── NEXT MIGRATION CANDIDATES ───────────────────────────────
+044  Attendance: parent read RLS (child's attendance),
+     missing idx on attendance(student_id, date)
+     (attendance table exists in 008 but no parent policy)
+
+045  Student portal: marks/reports parent read RLS
+     (marks, report_cards — currently no parent SELECT policy)
+
+046  Notifications polish: parent notification delivery
+     + unread count index
+
+047  Leave: complete approval workflow RLS review
+     (028 has triggers but staff approval policies need audit)
+
+── FUTURE FEATURES (not yet started) ───────────────────────
+- Online fee payment gateway (Stripe/Paystack hook)
+- Parent absence note / leave request
+- Teacher-parent meeting scheduler
+- Auto timetable generator (AI / constraint solver)
+- Biometric attendance integration
+- Push notifications (Expo + FCM)
+- PDF report card export
+
+── ROLES REFERENCE ─────────────────────────────────────────
+super_admin | school_super_admin | admin | principal |
+coordinator | hod | hrt | st | finance | hr |
+front_desk | parent | student
+
+── BUILD / DEPLOY ───────────────────────────────────────────
+APK:   eas build --platform android --profile preview
+Web:   (not configured)
+DB push: supabase db push  (from eScholr root, with supabase CLI)
+============================================================
