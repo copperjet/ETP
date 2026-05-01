@@ -24,14 +24,14 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 const NINETY_DAYS_AGO = subDays(new Date(), 90).toISOString();
 
 const TYPE_META: Record<string, { icon: IoniconsName; color: string }> = {
-  attendance_submitted: { icon: 'checkmark-circle-outline', color: Colors.semantic.success },
-  report_submitted:     { icon: 'document-text-outline',    color: Colors.semantic.info },
-  report_approved:      { icon: 'shield-checkmark-outline', color: Colors.semantic.success },
-  report_released:      { icon: 'gift-outline',             color: Colors.semantic.success },
-  report_rejected:      { icon: 'close-circle-outline',     color: Colors.semantic.error },
-  daybook_note:         { icon: 'book-outline',             color: Colors.semantic.warning },
-  finance_cleared:      { icon: 'card-outline',             color: Colors.semantic.success },
-  system:               { icon: 'information-circle-outline', color: Colors.semantic.info },
+  attendance_absent:  { icon: 'alert-circle-outline',        color: Colors.semantic.warning },
+  report_released:    { icon: 'gift-outline',                color: Colors.semantic.success },
+  report_updated:     { icon: 'document-text-outline',       color: Colors.semantic.info },
+  daybook_sent:       { icon: 'book-outline',                color: Colors.semantic.warning },
+  marks_unlocked:     { icon: 'create-outline',              color: Colors.semantic.info },
+  marks_complete:     { icon: 'checkmark-circle-outline',    color: Colors.semantic.success },
+  threshold_alert:    { icon: 'shield-outline',              color: Colors.semantic.error },
+  app_update:         { icon: 'information-circle-outline',  color: Colors.semantic.info },
 };
 
 function formatNotifDate(dateStr: string): string {
@@ -48,10 +48,10 @@ function useNotifications(userId: string, schoolId: string) {
     staleTime: 1000 * 30,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('notifications')
-        .select('id, type, title, body, is_read, created_at, data')
+        .from('notification_logs')
+        .select('id, trigger_event, title, body, is_read, created_at')
         .eq('school_id', schoolId)
-        .eq('recipient_id', userId)
+        .eq('recipient_user_id', userId)
         .gte('created_at', NINETY_DAYS_AGO)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -70,8 +70,8 @@ export default function NotificationsScreen() {
 
   const markRead = useMutation({
     mutationFn: async (notifId: string) => {
-      await (supabase as any).from('notifications').update({ is_read: true })
-        .eq('id', notifId).eq('recipient_id', user?.id ?? '');
+      await (supabase as any).from('notification_logs').update({ is_read: true })
+        .eq('id', notifId).eq('recipient_user_id', user?.id ?? '');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -81,8 +81,8 @@ export default function NotificationsScreen() {
 
   const markAllRead = useMutation({
     mutationFn: async () => {
-      await (supabase as any).from('notifications').update({ is_read: true })
-        .eq('school_id', user?.schoolId ?? '').eq('recipient_id', user?.id ?? '').eq('is_read', false);
+      await (supabase as any).from('notification_logs').update({ is_read: true })
+        .eq('school_id', user?.schoolId ?? '').eq('recipient_user_id', user?.id ?? '').eq('is_read', false);
     },
     onSuccess: () => {
       haptics.success();
@@ -93,17 +93,16 @@ export default function NotificationsScreen() {
 
   const getDeepLink = (notif: any): string | null => {
     const role = user?.activeRole;
-    switch (notif.type) {
-      case 'report_submitted':
-      case 'report_approved':
-      case 'report_rejected':
-        return role === 'admin' ? '/(app)/(admin)/reports' : '/(app)/(hrt)/reports';
+    switch (notif.trigger_event) {
+      case 'report_updated':
       case 'report_released':
-        return role === 'parent' ? '/(app)/(parent)/home' : '/(app)/(admin)/reports';
-      case 'daybook_note':
+        return role === 'admin' || role === 'principal' ? '/(app)/(admin)/reports' : '/(app)/(hrt)/reports';
+      case 'daybook_sent':
         return role === 'parent' ? '/(app)/(parent)/home' : '/(app)/(hrt)/daybook';
-      case 'attendance_submitted':
+      case 'attendance_absent':
         return role === 'hrt' ? '/(app)/(hrt)/attendance' : null;
+      case 'threshold_alert':
+        return '/(app)/(admin)/reports';
       default:
         return null;
     }
@@ -172,7 +171,7 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={colors.brand.primary} />}
           renderItem={({ item: notif }) => {
-            const meta = TYPE_META[notif.type] ?? TYPE_META.system;
+            const meta = TYPE_META[notif.trigger_event] ?? TYPE_META.app_update;
             const isUnread = !notif.is_read;
             const hasLink = !!getDeepLink(notif);
             return (

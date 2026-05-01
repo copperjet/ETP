@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
   View, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, FlatList, Alert,
+  TouchableOpacity, Alert, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,10 +22,10 @@ import { Spacing, Radius } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
 
-const CSV_HEADERS = ['full_name', 'student_number', 'stream_name', 'date_of_birth', 'gender'];
+const CSV_HEADERS = ['First_Name', 'Last_Name', 'Class', 'Date_of_Birth', 'Gender', 'Email', 'Parent_Email', 'Parent_Phone'];
 const TEMPLATE_ROWS = [
-  'Jane Wanjiku,2026001,Form 1A,2010-03-15,female',
-  'John Omondi,2026002,Form 1A,2010-07-22,male',
+  'Jane,Wanjiku,Form 1A,2010-03-15,female,jane@example.com,,',
+  'John,Omondi,Form 1A,2010-07-22,male,john@example.com,parent@example.com,+254700000000',
 ];
 
 function useStreams(schoolId: string) {
@@ -55,11 +55,15 @@ function useActiveSemester(schoolId: string) {
 }
 
 interface ParsedRow {
+  first_name: string;
+  last_name: string;
   full_name: string;
-  student_number: string;
-  stream_name: string;
+  class_name: string;
   date_of_birth: string;
   gender: string;
+  email: string;
+  parent_email: string;
+  parent_phone: string;
   stream_id: string | null;
   errors: string[];
   valid: boolean;
@@ -68,33 +72,52 @@ interface ParsedRow {
 function parseCSV(text: string, streams: any[]): ParsedRow[] {
   const streamMap: Record<string, string> = {};
   streams.forEach((s: any) => {
-    streamMap[s.name.toLowerCase()] = s.id;
-    if (s.grades?.name) streamMap[(s.grades.name + ' ' + s.name).toLowerCase()] = s.id;
+    streamMap[s.name.toLowerCase().trim()] = s.id;
+    if (s.grades?.name) {
+      streamMap[(s.grades.name + ' ' + s.name).toLowerCase().trim()] = s.id;
+    }
   });
 
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const start = lines[0]?.toLowerCase().includes('full_name') ? 1 : 0;
+  // Skip header row if present
+  const firstLower = lines[0]?.toLowerCase() ?? '';
+  const start = (firstLower.includes('first_name') || firstLower.includes('full_name') || firstLower.includes('class')) ? 1 : 0;
 
   return lines.slice(start).map((line) => {
-    const cols = line.split(',').map((c) => c.trim());
-    const [full_name = '', student_number = '', stream_name = '', date_of_birth = '', gender = ''] = cols;
+    // Handle quoted fields with commas inside
+    const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+    const [
+      first_name = '',
+      last_name = '',
+      class_name = '',
+      date_of_birth = '',
+      gender = '',
+      email = '',
+      parent_email = '',
+      parent_phone = '',
+    ] = cols;
+
+    const full_name = [first_name, last_name].filter(Boolean).join(' ').trim();
     const errors: string[] = [];
 
-    if (!full_name) errors.push('Name required');
-    if (!student_number) errors.push('Student number required');
+    if (!full_name) errors.push('First or Last name required');
 
-    const stream_id = streamMap[stream_name.toLowerCase()] ?? null;
-    if (!stream_id) errors.push(`Stream "${stream_name}" not found`);
+    const stream_id = streamMap[class_name.toLowerCase().trim()] ?? null;
+    if (!stream_id) errors.push(`Class "${class_name}" not found — check stream names in School Structure`);
 
     if (date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
-      errors.push('DOB must be yyyy-mm-dd');
+      errors.push('Date_of_Birth must be yyyy-mm-dd');
     }
 
     if (gender && !['male', 'female', 'other'].includes(gender.toLowerCase())) {
       errors.push('Gender must be male/female/other');
     }
 
-    return { full_name, student_number, stream_name, date_of_birth, gender, stream_id, errors, valid: errors.length === 0 };
+    return {
+      first_name, last_name, full_name, class_name,
+      date_of_birth, gender, email, parent_email, parent_phone,
+      stream_id, errors, valid: errors.length === 0,
+    };
   });
 }
 
@@ -149,6 +172,20 @@ export default function StudentImportScreen() {
 
   const handleDownloadTemplate = async () => {
     const content = [CSV_HEADERS.join(','), ...TEMPLATE_ROWS].join('\n');
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([content], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'student_import_template.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
     const path = FileSystem.cacheDirectory + 'student_import_template.csv';
     await FileSystem.writeAsStringAsync(path, content, { encoding: FileSystem.EncodingType.UTF8 });
     if (await Sharing.isAvailableAsync()) {
@@ -161,7 +198,14 @@ export default function StudentImportScreen() {
   const handleUpload = async () => {
     const result = await DocumentPicker.getDocumentAsync({ type: 'text/csv', copyToCacheDirectory: true });
     if (result.canceled || !result.assets?.[0]?.uri) return;
-    const text = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+
+    let text: string;
+    if (Platform.OS === 'web') {
+      text = await fetch(result.assets[0].uri).then((r) => r.text());
+    } else {
+      text = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
+    }
+
     const parsed = parseCSV(text, streams);
     if (!parsed.length) { Alert.alert('Empty file', 'No rows found in the CSV.'); return; }
     setRows(parsed);
@@ -174,10 +218,9 @@ export default function StudentImportScreen() {
     if (!semester?.id) { Alert.alert('No active semester', 'Activate a semester before importing students.'); return; }
     haptics.medium();
     try {
-      const result = await importMutation.mutateAsync({
+      await importMutation.mutateAsync({
         rows: valid.map((r) => ({
           full_name: r.full_name,
-          student_number: r.student_number,
           stream_id: r.stream_id!,
           date_of_birth: r.date_of_birth || undefined,
           gender: r.gender || undefined,
@@ -212,15 +255,18 @@ export default function StudentImportScreen() {
         {step === 1 && (
           <View style={{ gap: Spacing.base }}>
             <View style={[styles.infoBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-              <ThemedText variant="label" color="muted" style={{ fontSize: 10, marginBottom: 8 }}>REQUIRED COLUMNS</ThemedText>
+              <ThemedText variant="label" color="muted" style={{ fontSize: 10, marginBottom: 8 }}>CSV COLUMNS</ThemedText>
               {CSV_HEADERS.map((h) => (
                 <View key={h} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 }}>
-                  <View style={[styles.dot, { backgroundColor: colors.brand.primary }]} />
+                  <View style={[styles.dot, { backgroundColor: ['Parent_Email', 'Parent_Phone', 'Email'].includes(h) ? colors.textMuted : colors.brand.primary }]} />
                   <ThemedText variant="bodySm" style={{ fontFamily: 'monospace' }}>{h}</ThemedText>
+                  {['Parent_Email', 'Parent_Phone', 'Email'].includes(h) && (
+                    <ThemedText variant="caption" color="muted"> (optional)</ThemedText>
+                  )}
                 </View>
               ))}
               <ThemedText variant="caption" color="muted" style={{ marginTop: 8 }}>
-                stream_name must exactly match your configured stream names. date_of_birth format: yyyy-mm-dd.
+                Class must exactly match your stream names (e.g. "Form 1A"). Date_of_Birth format: yyyy-mm-dd. Student numbers are auto-assigned.
               </ThemedText>
             </View>
 
@@ -276,8 +322,11 @@ export default function StudentImportScreen() {
                 <View style={{ flex: 1 }}>
                   <ThemedText variant="bodySm" style={{ fontWeight: '600' }}>{row.full_name || '—'}</ThemedText>
                   <ThemedText variant="caption" color="muted">
-                    {row.student_number} · {row.stream_name}
+                    {row.class_name}{row.date_of_birth ? ' · ' + row.date_of_birth : ''}{row.gender ? ' · ' + row.gender : ''}
                   </ThemedText>
+                  {row.parent_email ? (
+                    <ThemedText variant="caption" color="muted">Parent: {row.parent_email}</ThemedText>
+                  ) : null}
                   {row.errors.map((e, j) => (
                     <ThemedText key={j} variant="caption" style={{ color: Colors.semantic.error }}>✕ {e}</ThemedText>
                   ))}

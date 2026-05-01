@@ -14,6 +14,7 @@ export default function Index() {
 
   switch (user.activeRole) {
     case 'super_admin':
+      if (user.schoolId) return <Redirect href="/(app)/(admin)/home" />;
       return <Redirect href="/(app)/(platform)/home" />;
     case 'hrt':
       return <Redirect href="/(app)/(hrt)/home" />;

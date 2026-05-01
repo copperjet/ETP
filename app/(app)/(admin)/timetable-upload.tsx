@@ -5,7 +5,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator,
+  TextInput, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -106,9 +106,21 @@ export default function TimetableUploadScreen() {
       setUploading(true);
       haptics.medium();
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      let base64: string;
+      if (Platform.OS === 'web') {
+        const resp = await fetch(file.uri);
+        const blob = await resp.blob();
+        base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        base64 = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
 
       const publicUrl = await uploadTimetableFile({
         schoolId,

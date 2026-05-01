@@ -68,9 +68,13 @@ export function BottomSheet({ visible, onClose, title, children, snapHeight = SC
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
-      </TouchableWithoutFeedback>
+      {Platform.OS !== 'web' ? (
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
+        </TouchableWithoutFeedback>
+      ) : (
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="none" />
+      )}
 
       <Animated.View
         style={[
@@ -99,15 +103,21 @@ export function BottomSheet({ visible, onClose, title, children, snapHeight = SC
           </View>
         </View>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentInner}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
-          {children}
-        </ScrollView>
+        {Platform.OS === 'web' ? (
+          <View style={[styles.content, styles.contentInner, { overflowY: 'auto' } as any]}>
+            {children}
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.contentInner}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            {children}
+          </ScrollView>
+        )}
       </Animated.View>
     </Modal>
   );

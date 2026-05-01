@@ -58,9 +58,9 @@ function normaliseStudent(r: any): Student {
     grade_name: r.streams?.grades?.name ?? '',
     section_name: r.streams?.grades?.school_sections?.name ?? '',
     is_active: (r.status ?? 'active') === 'active',
-    enrolled_at: r.enrolled_at ?? null,
-    emergency_contact_name: r.emergency_contact_name ?? null,
-    emergency_contact_phone: r.emergency_contact_phone ?? null,
+    enrolled_at: r.enrollment_date ?? null,
+    emergency_contact_name: null,
+    emergency_contact_phone: null,
   };
 }
 
@@ -81,7 +81,7 @@ export function useAllStudents(schoolId: string, params?: {
         .from('students')
         .select(`
           id, full_name, student_number, date_of_birth, gender, photo_url,
-          stream_id, status, enrolled_at, emergency_contact_name, emergency_contact_phone,
+          stream_id, status, enrollment_date,
           streams ( name, grades ( name, school_sections ( name ) ) )
         `)
         .eq('school_id', schoolId)
@@ -202,10 +202,8 @@ export function useCreateStudent(schoolId: string) {
           stream_id: params.streamId,
           date_of_birth: params.dateOfBirth || null,
           gender: params.gender || null,
-          emergency_contact_name: params.emergencyContactName?.trim() || null,
-          emergency_contact_phone: params.emergencyContactPhone?.trim() || null,
-          is_active: true,
-          enrolled_at: new Date().toISOString().slice(0, 10),
+          status: 'active',
+          enrollment_date: new Date().toISOString().slice(0, 10),
           created_at: new Date().toISOString(),
         })
         .select('id')
@@ -244,7 +242,7 @@ export function useUpdateStudent(schoolId: string) {
       if (params.gender !== undefined) updates.gender = params.gender;
       if (params.emergencyContactName !== undefined) updates.emergency_contact_name = params.emergencyContactName;
       if (params.emergencyContactPhone !== undefined) updates.emergency_contact_phone = params.emergencyContactPhone;
-      if (params.isActive !== undefined) updates.is_active = params.isActive;
+      if (params.isActive !== undefined) updates.status = params.isActive ? 'active' : 'inactive';
 
       const { error } = await db
         .from('students')
@@ -302,7 +300,7 @@ export function useBulkImportStudents(schoolId: string) {
     mutationFn: async (params: {
       rows: Array<{
         full_name: string;
-        student_number: string;
+        student_number?: string;
         stream_id: string;
         date_of_birth?: string;
         gender?: string;
@@ -316,12 +314,12 @@ export function useBulkImportStudents(schoolId: string) {
       const studentInserts = params.rows.map((r) => ({
         school_id: schoolId,
         full_name: r.full_name.trim(),
-        student_number: r.student_number.trim(),
+        ...(r.student_number ? { student_number: r.student_number.trim() } : {}),
         stream_id: r.stream_id,
         date_of_birth: r.date_of_birth || null,
         gender: r.gender || null,
-        is_active: true,
-        enrolled_at: today,
+        status: 'active',
+        enrollment_date: today,
         created_at: now,
       }));
 
