@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   tabBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1.5 },
   list: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, paddingBottom: TAB_BAR_HEIGHT + Spacing.xl, gap: Spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, borderRadius: Radius.lg, borderWidth: 1.5, gap: Spacing.sm },
-  eventDot: { width: 6, alignSelf: 'stretch', borderRadius: 3 },
+  eventDot: { width: 4, alignSelf: 'stretch', borderRadius: 2 },
   actionPill: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1.5 },
   fieldLabel: { fontSize: 10, letterSpacing: 0.5, marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, fontSize: 14 },

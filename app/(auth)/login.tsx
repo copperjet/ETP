@@ -109,7 +109,7 @@ export default function LoginScreen() {
             <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
           </Pressable>
         )}
-        <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: Spacing['2xl'] }}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: Spacing['2xl'] }}>
           {school?.logo_url ? (
             <Image
               source={{ uri: school.logo_url }}
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
@@ -240,16 +240,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#0F5132',
   },
-  heroTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '700', letterSpacing: -0.3 },
-  heroSub:   { color: 'rgba(255,255,255,0.72)', fontSize: 15, marginTop: 6 },
+  heroTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '700', letterSpacing: -0.3, textAlign: 'center' },
+  heroSub:   { color: 'rgba(255,255,255,0.72)', fontSize: 15, marginTop: 6, textAlign: 'center' },
   sheet: {
-    flex: 1,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    marginTop: -28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     paddingTop: Spacing['2xl'],
     paddingHorizontal: Spacing['2xl'],
     paddingBottom: Spacing['4xl'],
+    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
     ...Shadow.lg,
   },
   form: {
@@ -266,7 +269,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 12,
     marginBottom: Spacing.md,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   forgotBtn: {
     alignItems: 'center',

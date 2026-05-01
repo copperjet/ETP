@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, TextInput, StyleSheet, KeyboardAvoidingView,
-  Platform, Animated, Image, StatusBar, Pressable,
+  Platform, Animated, Image, StatusBar, Pressable, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -84,50 +84,52 @@ export default function SchoolCodeScreen() {
 
       {/* ── White sheet ── */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={[styles.sheet, { backgroundColor: colors.background }]}>
-          <Animated.View style={[styles.form, { transform: [{ translateX: shakeAnim }] }]}>
-            <ThemedText variant="h2" style={{ marginBottom: Spacing.xs }}>Enter school code</ThemedText>
-            <ThemedText variant="body" color="muted" style={{ marginBottom: Spacing.lg }}>
-              Your school administrator provides this code.
-            </ThemedText>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
+          <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+            <Animated.View style={[styles.form, { transform: [{ translateX: shakeAnim }] }]}>
+              <ThemedText variant="h2" style={{ marginBottom: Spacing.xs }}>Enter school code</ThemedText>
+              <ThemedText variant="body" color="muted" style={{ marginBottom: Spacing.lg }}>
+                Your school administrator provides this code.
+              </ThemedText>
 
-            <View style={[
-              styles.codeInput,
-              { backgroundColor: colors.surfaceSecondary, borderColor: error ? '#DC2626' : colors.border },
-            ]}>
-              <Ionicons name="school-outline" size={20} color={error ? '#DC2626' : colors.textMuted} style={{ marginRight: Spacing.sm }} />
-              <TextInput
-                value={code}
-                onChangeText={t => { setCode(t); setError(''); }}
-                placeholder="e.g. ESCHOLR"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={handleContinue}
-                style={[{ flex: 1, fontSize: 18, fontWeight: '700', letterSpacing: 3, color: colors.brand.primary }, Platform.OS === 'web' ? { outlineStyle: 'none' } as any : undefined]}
-              />
-            </View>
-
-            {error ? (
-              <View style={styles.errorRow}>
-                <Ionicons name="alert-circle-outline" size={15} color="#DC2626" />
-                <ThemedText style={{ color: '#DC2626', fontSize: 13, marginLeft: 5 }}>{error}</ThemedText>
+              <View style={[
+                styles.codeInput,
+                { backgroundColor: colors.surfaceSecondary, borderColor: error ? '#DC2626' : colors.border },
+              ]}>
+                <Ionicons name="school-outline" size={20} color={error ? '#DC2626' : colors.textMuted} style={{ marginRight: Spacing.sm }} />
+                <TextInput
+                  value={code}
+                  onChangeText={t => { setCode(t); setError(''); }}
+                  placeholder="e.g. ESCHOLR"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleContinue}
+                  style={[{ flex: 1, fontSize: 18, fontWeight: '700', letterSpacing: 3, color: colors.brand.primary }, Platform.OS === 'web' ? { outlineStyle: 'none' } as any : undefined]}
+                />
               </View>
-            ) : null}
 
-            <Button label="Continue" onPress={handleContinue} loading={loading} fullWidth size="lg" style={{ marginTop: Spacing.md }} />
-          </Animated.View>
+              {error ? (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle-outline" size={15} color="#DC2626" />
+                  <ThemedText style={{ color: '#DC2626', fontSize: 13, marginLeft: 5 }}>{error}</ThemedText>
+                </View>
+              ) : null}
 
-          {/* Hidden platform-admin tap target — visually invisible at the very
-              bottom of the screen. Anyone who knows where it is can tap it. */}
-          <Pressable
-            onPress={() => router.push('/(auth)/platform-login' as any)}
-            style={styles.hiddenPlatformLink}
-            hitSlop={12}
-            accessibilityLabel="eScholr admin access"
-          />
-        </View>
+              <Button label="Continue" onPress={handleContinue} loading={loading} fullWidth size="lg" style={{ marginTop: Spacing.md }} />
+            </Animated.View>
+
+            {/* Hidden platform-admin tap target — visually invisible at the very
+                bottom of the screen. Anyone who knows where it is can tap it. */}
+            <Pressable
+              onPress={() => router.push('/(auth)/platform-login' as any)}
+              style={styles.hiddenPlatformLink}
+              hitSlop={12}
+              accessibilityLabel="eScholr admin access"
+            />
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -157,12 +159,16 @@ const styles = StyleSheet.create({
   overlayLogo: { width: 72, height: 72, tintColor: '#fff' },
   schoolLogo: { width: 120, height: 120, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)' },
   sheet: {
-    flex: 1,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    marginTop: -28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     padding: Spacing['2xl'],
     paddingTop: Spacing['3xl'],
+    paddingBottom: Spacing['4xl'],
+    borderWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
   },
   form: { gap: Spacing.sm },
   codeInput: {

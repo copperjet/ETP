@@ -243,6 +243,9 @@ export default function SchoolStructureScreen() {
     if (!name.trim()) { setEditorError('Name is required.'); return; }
 
     let payload: Record<string, any> = { name: name.trim() };
+    if (editor.kind === 'section') {
+      payload.code = name.trim().toUpperCase().slice(0, 3);
+    }
     if (editor.kind === 'subject') {
       payload.code = code.trim() || null;
       payload.department = dept.trim() || null;
