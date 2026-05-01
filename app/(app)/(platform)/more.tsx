@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Alert, StatusBar, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, StatusBar, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -85,10 +85,18 @@ export default function PlatformMore() {
           icon: 'log-out-outline',
           label: 'Sign Out',
           danger: true,
-          onPress: () => Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/school-code' as any); } },
-          ]),
+          onPress: () => {
+            if (Platform.OS === 'web') {
+              if (window.confirm('Are you sure you want to sign out?')) {
+                signOut().then(() => router.replace('/(auth)/school-code' as any));
+              }
+              return;
+            }
+            Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/school-code' as any); } },
+            ]);
+          },
         },
       ],
     },

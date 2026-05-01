@@ -56,7 +56,7 @@ export default function SchoolCodeScreen() {
     });
   };
 
-  return (
+  const inner = (
     <View style={[styles.root, { backgroundColor: colors.brand.primary }]}>
       <StatusBar barStyle="light-content" />
 
@@ -131,6 +131,17 @@ export default function SchoolCodeScreen() {
       </KeyboardAvoidingView>
     </View>
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.brand.primary, alignItems: 'center' }}>
+        <View style={{ width: '100%', maxWidth: 480, flex: 1 }}>
+          {inner}
+        </View>
+      </View>
+    );
+  }
+  return inner;
 }
 
 const styles = StyleSheet.create({

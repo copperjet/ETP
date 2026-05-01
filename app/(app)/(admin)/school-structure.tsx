@@ -117,6 +117,7 @@ export default function SchoolStructureScreen() {
   const [code, setCode] = useState('');
   const [dept, setDept] = useState('');
   const [parent, setParent] = useState<string | null>(null);
+  const [editorError, setEditorError] = useState('');
 
   const tree = useMemo(() => {
     if (!data) return [];
@@ -133,7 +134,7 @@ export default function SchoolStructureScreen() {
 
   const openAdd = (kind: EntityKind, parentId?: string) => {
     setAddPickerOpen(false);
-    setName(''); setCode(''); setDept(''); setParent(parentId ?? null);
+    setName(''); setCode(''); setDept(''); setParent(parentId ?? null); setEditorError('');
     if (kind === 'section')      setEditor({ kind, mode: 'add' });
     else if (kind === 'grade')   setEditor({ kind, mode: 'add', parentSectionId: parentId });
     else if (kind === 'stream')  setEditor({ kind, mode: 'add', parentGradeId: parentId });
@@ -145,6 +146,7 @@ export default function SchoolStructureScreen() {
     setCode(row.code ?? '');
     setDept(row.department ?? '');
     setParent(row.section_id ?? row.grade_id ?? null);
+    setEditorError('');
     if (kind === 'section')      setEditor({ kind, mode: 'edit', row });
     else if (kind === 'grade')   setEditor({ kind, mode: 'edit', row, parentSectionId: row.section_id });
     else if (kind === 'stream')  setEditor({ kind, mode: 'edit', row, parentGradeId: row.grade_id });
@@ -238,7 +240,7 @@ export default function SchoolStructureScreen() {
 
   const handleSave = async () => {
     if (!editor) return;
-    if (!name.trim()) { Alert.alert('Validation', 'Name is required.'); return; }
+    if (!name.trim()) { setEditorError('Name is required.'); return; }
 
     let payload: Record<string, any> = { name: name.trim() };
     if (editor.kind === 'subject') {
@@ -246,16 +248,17 @@ export default function SchoolStructureScreen() {
       payload.department = dept.trim() || null;
     }
     if (editor.kind === 'grade') {
-      const sectionId = editor.mode === 'add' ? editor.parentSectionId : (editor.row as Grade)?.section_id;
-      if (!sectionId) { Alert.alert('Validation', 'Select a section.'); return; }
+      const sectionId = editor.mode === 'add' ? (editor.parentSectionId ?? parent) : (editor.row as Grade)?.section_id;
+      if (!sectionId) { setEditorError('Select a section.'); return; }
       payload.section_id = sectionId;
     }
     if (editor.kind === 'stream') {
-      const gradeId = editor.mode === 'add' ? editor.parentGradeId : (editor.row as Stream)?.grade_id;
-      if (!gradeId) { Alert.alert('Validation', 'Select a grade.'); return; }
+      const gradeId = editor.mode === 'add' ? (editor.parentGradeId ?? parent) : (editor.row as Stream)?.grade_id;
+      if (!gradeId) { setEditorError('Select a grade.'); return; }
       payload.grade_id = gradeId;
     }
 
+    setEditorError('');
     haptics.medium();
     try {
       await saveEntity.mutateAsync({
@@ -267,7 +270,7 @@ export default function SchoolStructureScreen() {
       setEditor(null);
     } catch (e: any) {
       haptics.error();
-      Alert.alert('Error', e?.message ?? 'Could not save.');
+      setEditorError(e?.message ?? 'Could not save. Try again.');
     }
   };
 
@@ -459,7 +462,7 @@ export default function SchoolStructureScreen() {
               </View>
             )}
 
-            <FormField label="Name *" value={name} onChangeText={setName} iconLeft="create-outline" />
+            <FormField label="Name *" value={name} onChangeText={(t) => { setName(t); setEditorError(''); }} iconLeft="create-outline" />
 
             {editor.kind === 'subject' && (
               <>
@@ -467,6 +470,13 @@ export default function SchoolStructureScreen() {
                 <FormField label="Department" placeholder="e.g. Sciences" value={dept} onChangeText={setDept} iconLeft="business-outline" />
               </>
             )}
+
+            {editorError ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.semantic.error + '12', padding: Spacing.md, borderRadius: Radius.md }}>
+                <Ionicons name="alert-circle-outline" size={15} color={Colors.semantic.error} />
+                <ThemedText style={{ color: Colors.semantic.error, fontSize: 13, flex: 1 }}>{editorError}</ThemedText>
+              </View>
+            ) : null}
 
             <Button label={editor.mode === 'add' ? 'Create' : 'Save'} onPress={handleSave} loading={saveEntity.isPending} fullWidth size="lg" />
           </View>

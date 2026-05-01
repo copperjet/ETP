@@ -98,7 +98,7 @@ export default function LoginScreen() {
     router.replace('/');
   };
 
-  return (
+  const inner = (
     <View style={{ flex: 1, backgroundColor: colors.brand.primary }}>
       <StatusBar barStyle="light-content" />
 
@@ -196,6 +196,17 @@ export default function LoginScreen() {
       </KeyboardAvoidingView>
     </View>
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.brand.primary, alignItems: 'center' }}>
+        <View style={{ width: '100%', maxWidth: 480, flex: 1 }}>
+          {inner}
+        </View>
+      </View>
+    );
+  }
+  return inner;
 }
 
 const styles = StyleSheet.create({
