@@ -22,37 +22,41 @@ interface NavItem {
 
 // Define navigation structure for each role
 const ROLE_NAV_ITEMS: Record<string, NavItem[]> = {
+  super_admin: [
+    { path: '/(app)/(platform)', label: 'Schools', icon: 'grid-outline' },
+    { path: '/(app)/(platform)/metrics', label: 'Metrics', icon: 'bar-chart-outline' },
+    { path: '/(app)/(platform)/impersonation-log', label: 'Audit', icon: 'shield-outline' },
+    { path: '/(app)/(platform)/more', label: 'Account', icon: 'person-circle-outline' },
+  ],
   admin: [
     { path: '/(app)/(admin)', label: 'Dashboard', icon: 'grid-outline' },
     { path: '/(app)/(admin)/students', label: 'Students', icon: 'people-outline' },
     { path: '/(app)/(admin)/staff', label: 'Staff', icon: 'briefcase-outline' },
-    { path: '/(app)/(admin)/academics', label: 'Academics', icon: 'school-outline' },
-    { path: '/(app)/(admin)/finance', label: 'Finance', icon: 'cash-outline' },
+    { path: '/(app)/(admin)/reports', label: 'Reports', icon: 'document-text-outline' },
+    { path: '/(app)/(admin)/attendance-overview', label: 'Attendance', icon: 'calendar-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(admin)/more', label: 'More', icon: 'menu-outline' },
   ],
   hrt: [
     { path: '/(app)/(hrt)', label: 'Dashboard', icon: 'grid-outline' },
-    { path: '/(app)/(hrt)/class', label: 'My Class', icon: 'people-outline' },
+    { path: '/(app)/(hrt)/students', label: 'My Class', icon: 'people-outline' },
     { path: '/(app)/(hrt)/attendance', label: 'Attendance', icon: 'calendar-outline' },
     { path: '/(app)/(hrt)/marks', label: 'Marks', icon: 'create-outline' },
-    { path: '/(app)/timetable', label: 'Timetable', icon: 'time-outline' },
+    { path: '/(app)/(hrt)/homework', label: 'Homework', icon: 'book-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(hrt)/more', label: 'More', icon: 'menu-outline' },
   ],
   st: [
     { path: '/(app)/(st)', label: 'Dashboard', icon: 'grid-outline' },
-    { path: '/(app)/(st)/classes', label: 'My Classes', icon: 'people-outline' },
-    { path: '/(app)/(st)/attendance', label: 'Attendance', icon: 'calendar-outline' },
+    { path: '/(app)/(st)/students', label: 'Students', icon: 'people-outline' },
     { path: '/(app)/(st)/marks', label: 'Marks', icon: 'create-outline' },
-    { path: '/(app)/timetable', label: 'Timetable', icon: 'time-outline' },
+    { path: '/(app)/(st)/homework', label: 'Homework', icon: 'book-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(st)/more', label: 'More', icon: 'menu-outline' },
   ],
   finance: [
     { path: '/(app)/(finance)', label: 'Dashboard', icon: 'grid-outline' },
-    { path: '/(app)/(finance)/records', label: 'Fee Records', icon: 'cash-outline' },
-    { path: '/(app)/(finance)/reports', label: 'Reports', icon: 'bar-chart-outline' },
+    { path: '/(app)/(finance)/finance-reports', label: 'Reports', icon: 'bar-chart-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(finance)/more', label: 'More', icon: 'menu-outline' },
   ],
@@ -60,33 +64,31 @@ const ROLE_NAV_ITEMS: Record<string, NavItem[]> = {
     { path: '/(app)/(hr)', label: 'Dashboard', icon: 'grid-outline' },
     { path: '/(app)/(hr)/staff', label: 'Staff', icon: 'people-outline' },
     { path: '/(app)/(hr)/leave', label: 'Leave', icon: 'calendar-outline' },
-    { path: '/(app)/(hr)/payroll', label: 'Payroll', icon: 'cash-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(hr)/more', label: 'More', icon: 'menu-outline' },
   ],
   frontdesk: [
     { path: '/(app)/(frontdesk)', label: 'Dashboard', icon: 'grid-outline' },
+    { path: '/(app)/(frontdesk)/inquiries', label: 'Inquiries', icon: 'chatbubble-outline' },
     { path: '/(app)/(frontdesk)/visitors', label: 'Visitors', icon: 'people-outline' },
-    { path: '/(app)/(frontdesk)/calls', label: 'Calls', icon: 'call-outline' },
-    { path: '/(app)/(frontdesk)/daybook', label: 'Daybook', icon: 'book-outline' },
+    { path: '/(app)/(frontdesk)/applications', label: 'Applications', icon: 'document-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(frontdesk)/more', label: 'More', icon: 'menu-outline' },
   ],
   parent: [
     { path: '/(app)/(parent)', label: 'Dashboard', icon: 'grid-outline' },
-    { path: '/(app)/(parent)/children', label: 'Children', icon: 'people-outline' },
-    { path: '/(app)/(parent)/attendance', label: 'Attendance', icon: 'calendar-outline' },
+    { path: '/(app)/(parent)/homework', label: 'Homework', icon: 'book-outline' },
     { path: '/(app)/(parent)/reports', label: 'Reports', icon: 'document-text-outline' },
     { path: '/(app)/(parent)/fees', label: 'Fees', icon: 'cash-outline' },
+    { path: '/(app)/(parent)/messages', label: 'Messages', icon: 'chatbubble-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(parent)/more', label: 'More', icon: 'menu-outline' },
   ],
   student: [
     { path: '/(app)/(student)', label: 'Dashboard', icon: 'grid-outline' },
-    { path: '/(app)/(student)/timetable', label: 'Timetable', icon: 'time-outline' },
-    { path: '/(app)/(student)/attendance', label: 'Attendance', icon: 'calendar-outline' },
-    { path: '/(app)/(student)/marks', label: 'My Marks', icon: 'school-outline' },
+    { path: '/(app)/(student)/marks', label: 'Marks', icon: 'school-outline' },
     { path: '/(app)/(student)/reports', label: 'Reports', icon: 'document-text-outline' },
+    { path: '/(app)/(student)/homework', label: 'Homework', icon: 'book-outline' },
     { path: '/(app)/announcements', label: 'Announcements', icon: 'megaphone-outline' },
     { path: '/(app)/(student)/more', label: 'More', icon: 'menu-outline' },
   ],
@@ -94,8 +96,9 @@ const ROLE_NAV_ITEMS: Record<string, NavItem[]> = {
 
 // Map role variations to base role
 function getBaseRole(role: string): string {
-  // All admin variations use admin navigation
-  if (['admin', 'principal', 'coordinator', 'hod'].includes(role)) return 'admin';
+  if (role === 'super_admin') return 'super_admin';
+  if (['school_super_admin', 'admin', 'principal', 'coordinator', 'hod'].includes(role)) return 'admin';
+  if (role === 'front_desk') return 'frontdesk';
   return role;
 }
 

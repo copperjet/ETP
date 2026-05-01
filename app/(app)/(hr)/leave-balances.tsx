@@ -129,7 +129,9 @@ export default function HRLeaveBalances() {
           contentContainerStyle={styles.chipRow}
         >
           {staffLoading ? (
-            <ThemedText color="muted" style={{ padding: Spacing.md }}>Loading...</ThemedText>
+            <View style={{ paddingHorizontal: Spacing.md, gap: 8 }}>
+              <View style={{ height: 16, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
           ) : filteredStaff.length === 0 ? (
             <ThemedText color="muted" style={{ padding: Spacing.md }}>No staff found</ThemedText>
           ) : (

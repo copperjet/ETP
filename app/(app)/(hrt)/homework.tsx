@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
@@ -273,7 +274,7 @@ export default function HomeworkScreen() {
                 <View style={styles.metaRow}>
                   <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
                   <ThemedText variant="caption" color="secondary">
-                    Due: {item.due_date}
+                    Due: {item.due_date ? format(parseISO(item.due_date), 'd MMM yyyy') : '—'}
                   </ThemedText>
                 </View>
                 <ThemedText variant="caption" color="secondary">
@@ -340,7 +341,7 @@ function CreateHomeworkModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[styles.modalContent, { backgroundColor: colors.background }]}
       >
-        <View style={styles.modalHeader}>
+        <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
           <ThemedText variant="h4">Assign Homework</ThemedText>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />
@@ -384,7 +385,7 @@ function CreateHomeworkModal({
           />
         </ScrollView>
 
-        <View style={styles.modalFooter}>
+        <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
           <Button label="Cancel" variant="ghost" onPress={onClose} />
           <Button
             label="Assign"
@@ -440,7 +441,7 @@ function SubmissionsModal({
         </View>
 
         <ThemedText variant="bodySm" color="secondary" style={styles.modalSubtitle}>
-          Due: {homework.due_date} · Max: {homework.max_score}
+          Due: {homework.due_date ? format(parseISO(homework.due_date), 'd MMM yyyy') : '—'} · Max: {homework.max_score}
         </ThemedText>
 
         {loading ? (

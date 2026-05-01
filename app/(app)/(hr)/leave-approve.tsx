@@ -44,7 +44,11 @@ export default function HRLeaveApprove() {
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-        <ThemedText>Loading...</ThemedText>
+        <View style={{ padding: Spacing.lg, gap: 12 }}>
+          <View style={{ height: 20, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+          <View style={{ height: 16, width: '80%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+          <View style={{ height: 16, width: '70%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+        </View>
       </SafeAreaView>
     );
   }

@@ -110,7 +110,7 @@ export default function FinanceHome() {
       {/* ── Header ── */}
       <View style={styles.topBar}>
         <View style={{ flex: 1 }}>
-          <ThemedText variant="caption" color="muted">{isLoading ? 'Loading…' : (semester?.name ?? 'Active Semester')}</ThemedText>
+          <ThemedText variant="caption" color="muted">{semester?.name ?? 'Finance'}</ThemedText>
           <ThemedText variant="h2">Finance</ThemedText>
         </View>
         {hasSelection ? (

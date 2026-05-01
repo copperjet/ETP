@@ -112,7 +112,12 @@ export default function FeeStructureScreen() {
         {/* Categories */}
         <SectionHeader title="Fee Categories" />
         {catLoading ? (
-          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : categories?.length === 0 ? (
           <EmptyState title="No categories" description="Add fee categories first." />
         ) : (
@@ -133,7 +138,12 @@ export default function FeeStructureScreen() {
         {/* Schedules */}
         <SectionHeader title="Fee Amounts" />
         {schedLoading ? (
-          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : schedules?.length === 0 ? (
           <EmptyState title="No fee schedules" description="Add amounts per category/grade." />
         ) : (

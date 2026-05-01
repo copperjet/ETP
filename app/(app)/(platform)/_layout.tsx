@@ -1,16 +1,26 @@
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs, Redirect, Slot } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
-import { AppTabBar } from '../../../components/ui';
+import { AppTabBar, ResponsiveShell } from '../../../components/ui';
+import { useShouldShowSidebar } from '../../../lib/responsive';
 
 export default function PlatformLayout() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
+  const showSidebar = useShouldShowSidebar();
 
   // Platform routes: only pure super_admin (no school) allowed
   if (!user || user.activeRole !== 'super_admin' || user.schoolId) {
     return <Redirect href="/" />;
+  }
+
+  if (showSidebar) {
+    return (
+      <ResponsiveShell>
+        <Slot />
+      </ResponsiveShell>
+    );
   }
 
   return (

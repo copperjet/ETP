@@ -68,7 +68,7 @@ function useHRTStream(staffId: string | null, schoolId: string) {
         .eq('staff_id', staffId!)
         .eq('school_id', schoolId)
         .limit(1)
-        .single();
+        .maybeSingle();
       return data as any ?? null;
     },
   });

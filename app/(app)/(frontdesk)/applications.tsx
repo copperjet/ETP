@@ -210,7 +210,7 @@ export default function ApplicationsScreen() {
 
       {/* Detail Sheet */}
       {selected && (
-        <BottomSheet visible={detailVisible} onDismiss={() => { setDetailVisible(false); setSelected(null); }} title="Application Details">
+        <BottomSheet visible={detailVisible} onClose={() => { setDetailVisible(false); setSelected(null); }} title="Application Details">
           <View style={{ gap: Spacing.md }}>
             {/* Student info */}
             <View>
@@ -276,7 +276,7 @@ export default function ApplicationsScreen() {
                     return (
                       <Button
                         key={ns}
-                        title={meta?.label ?? ns}
+                        label={meta?.label ?? ns}
                         variant={ns === 'rejected' ? 'outline' : 'primary'}
                         size="sm"
                         onPress={() => {

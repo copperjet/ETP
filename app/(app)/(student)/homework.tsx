@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { useStudentHomework, useSubmitHomework } from '../../../hooks/useHomework';
@@ -108,7 +109,7 @@ export default function StudentHomework() {
             <View style={styles.meta}>
               <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
               <ThemedText variant="caption" color="secondary">
-                Due: {item.assignment.due_date}
+                Due: {item.assignment.due_date ? format(parseISO(item.assignment.due_date), 'd MMM yyyy') : '—'}
               </ThemedText>
             </View>
             {item.submission?.score !== null && item.submission?.score !== undefined && (
@@ -157,7 +158,7 @@ export default function StudentHomework() {
       <Modal visible={!!viewing} animationType="slide" transparent>
         <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <ThemedText variant="h4" numberOfLines={1} style={{ flex: 1 }}>
                 {viewing?.assignment?.title}
               </ThemedText>
@@ -170,7 +171,7 @@ export default function StudentHomework() {
               <View style={styles.metaRow}>
                 <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
                 <ThemedText variant="caption" color="secondary">
-                  Due: {viewing?.assignment?.due_date}
+                  Due: {viewing?.assignment?.due_date ? format(parseISO(viewing.assignment.due_date), 'd MMM yyyy') : '—'}
                 </ThemedText>
               </View>
               {viewing?.submission?.feedback && (
@@ -221,7 +222,7 @@ function SubmitModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[styles.modal, { backgroundColor: colors.background }]}
       >
-        <View style={styles.modalHeader}>
+        <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
           <ThemedText variant="h4">Submit Homework</ThemedText>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />
@@ -240,7 +241,7 @@ function SubmitModal({
             multiline
           />
         </ScrollView>
-        <View style={styles.modalFooter}>
+        <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
           <Button label="Cancel" variant="ghost" onPress={onClose} />
           <Button label="Submit" loading={loading} onPress={() => onSubmit(text)} />
         </View>

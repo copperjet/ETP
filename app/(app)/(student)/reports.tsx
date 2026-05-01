@@ -54,7 +54,12 @@ export default function StudentReports() {
         </View>
 
         {isLoading ? (
-          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : reports?.length === 0 ? (
           <EmptyState title="No reports yet" description="Reports appear once generated and released by school." icon="document-text-outline" />
         ) : (

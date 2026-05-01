@@ -17,6 +17,7 @@ import {
   Platform,
   Alert,
   Animated,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,6 +82,8 @@ export default function MarksEntryScreen() {
   const [localEdits, setLocalEdits] = useState<Record<string, Record<string, string>>>({});
   // Save states per cell key "studentId:type"
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
+  // Cross-platform N/A excuse reason prompt state
+  const [excusePrompt, setExcusePrompt] = useState<{ studentId: string; reason: string } | null>(null);;
 
   const detail = marksData?.detail ?? null;
   const students = marksData?.students ?? [];
@@ -199,36 +202,41 @@ export default function MarksEntryScreen() {
         Alert.alert('Contact Admin', 'Only an Admin can remove the N/A designation from a mark.');
         return;
       }
-      Alert.alert(
-        'Mark as N/A (Excused)?',
-        'This will mark all assessment components for this student as excused (N/A). Enter a reason.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Mark N/A',
-            onPress: () => {
-              Alert.prompt(
-                'Reason',
-                'Required — why is this student excused?',
-                (reason) => {
-                  if (!reason?.trim()) return;
-                  haptics.medium();
-                  excuseMark.mutate({
-                    studentId,
-                    subjectId:  detail!.subject_id,
-                    streamId:   detail!.stream_id,
-                    semesterId: detail!.semester_id,
-                    enteredBy:  user!.staffId!,
-                    isExcused:  true,
-                    reason,
-                  });
-                },
-                'plain-text',
-              );
+      if (Platform.OS === 'ios') {
+        Alert.alert(
+          'Mark as N/A (Excused)?',
+          'This will mark all assessment components for this student as excused (N/A).',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Mark N/A',
+              onPress: () => {
+                Alert.prompt(
+                  'Reason',
+                  'Required — why is this student excused?',
+                  (reason) => {
+                    if (!reason?.trim()) return;
+                    haptics.medium();
+                    excuseMark.mutate({
+                      studentId,
+                      subjectId:  detail!.subject_id,
+                      streamId:   detail!.stream_id,
+                      semesterId: detail!.semester_id,
+                      enteredBy:  user!.staffId!,
+                      isExcused:  true,
+                      reason,
+                    });
+                  },
+                  'plain-text',
+                );
+              },
             },
-          },
-        ],
-      );
+          ],
+        );
+      } else {
+        // Android/Web: use inline reason prompt state
+        setExcusePrompt({ studentId, reason: '' });
+      }
     },
     [detail, user, excuseMark],
   );
@@ -484,6 +492,54 @@ export default function MarksEntryScreen() {
           />
         )}
       </KeyboardAvoidingView>
+
+      {/* Cross-platform N/A reason prompt (Android + Web) */}
+      {excusePrompt && (
+        <Modal transparent animationType="fade" onRequestClose={() => setExcusePrompt(null)}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: Radius.lg, padding: Spacing.lg, width: '85%', gap: Spacing.md }}>
+              <ThemedText variant="h4">Mark as N/A (Excused)</ThemedText>
+              <ThemedText variant="bodySm" color="muted">Enter a reason for excusing this student.</ThemedText>
+              <TextInput
+                value={excusePrompt.reason}
+                onChangeText={(v) => setExcusePrompt(p => p ? { ...p, reason: v } : null)}
+                placeholder="e.g. Medical leave, transferred..."
+                placeholderTextColor={colors.textMuted}
+                autoFocus
+                style={{
+                  borderWidth: 1, borderColor: colors.border, borderRadius: Radius.md,
+                  padding: Spacing.md, color: colors.textPrimary, fontSize: 14,
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: Spacing.sm, justifyContent: 'flex-end' }}>
+                <TouchableOpacity onPress={() => setExcusePrompt(null)} style={{ padding: Spacing.md }}>
+                  <ThemedText color="muted">Cancel</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    const reason = excusePrompt.reason.trim();
+                    if (!reason) return;
+                    haptics.medium();
+                    excuseMark.mutate({
+                      studentId:  excusePrompt.studentId,
+                      subjectId:  detail!.subject_id,
+                      streamId:   detail!.stream_id,
+                      semesterId: detail!.semester_id,
+                      enteredBy:  user!.staffId!,
+                      isExcused:  true,
+                      reason,
+                    });
+                    setExcusePrompt(null);
+                  }}
+                  style={{ padding: Spacing.md, backgroundColor: colors.brand.primary, borderRadius: Radius.md }}
+                >
+                  <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Mark N/A</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }

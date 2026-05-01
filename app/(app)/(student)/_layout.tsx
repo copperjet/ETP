@@ -1,16 +1,26 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Slot } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../stores/authStore';
 import { Redirect } from 'expo-router';
 import { useTheme } from '../../../lib/theme';
-import { AppTabBar } from '../../../components/ui/AppTabBar';
+import { AppTabBar, ResponsiveShell } from '../../../components/ui';
+import { useShouldShowSidebar } from '../../../lib/responsive';
 
 export default function StudentLayout() {
   const { user } = useAuthStore();
   const { colors } = useTheme();
+  const showSidebar = useShouldShowSidebar();
 
   if (user?.activeRole !== 'student') {
     return <Redirect href="/" />;
+  }
+
+  if (showSidebar) {
+    return (
+      <ResponsiveShell>
+        <Slot />
+      </ResponsiveShell>
+    );
   }
 
   return (

@@ -258,7 +258,7 @@ function ComposeModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[styles.composeModal, { backgroundColor: colors.background }]}
       >
-        <View style={styles.composeHeader}>
+        <View style={[styles.composeHeader, { borderBottomColor: colors.border }]}>
           <ThemedText variant="h4">New Message</ThemedText>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color={colors.textPrimary} />
@@ -311,7 +311,7 @@ function ComposeModal({
           )}
         </ScrollView>
 
-        <View style={styles.composeFooter}>
+        <View style={[styles.composeFooter, { borderTopColor: colors.border }]}>
           <Button label="Cancel" variant="ghost" onPress={onClose} />
           <Button
             label="Send"
@@ -384,7 +384,7 @@ function ChatScreen({
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <View style={styles.chatHeader}>
+      <View style={[styles.chatHeader, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>

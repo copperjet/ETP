@@ -185,7 +185,7 @@ export default function VisitorLogScreen() {
           </ThemedText>
           {isActive ? (
             <Button
-              title="Sign Out"
+              label="Sign Out"
               variant="outline"
               size="sm"
               onPress={() => {
@@ -276,7 +276,7 @@ export default function VisitorLogScreen() {
       />
 
       {/* Sign-In Sheet */}
-      <BottomSheet visible={sheetVisible} onDismiss={() => setSheetVisible(false)} title="Sign In Visitor">
+      <BottomSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} title="Sign In Visitor">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <FormField label="Visitor Name *" value={form.visitorName} onChangeText={(v: string) => setForm(f => ({ ...f, visitorName: v }))} placeholder="Full name" autoCapitalize="words" />
           <FormField label="Purpose" value={form.purpose} onChangeText={(v: string) => setForm(f => ({ ...f, purpose: v }))} placeholder="e.g. Parent meeting, Delivery" />
@@ -288,7 +288,7 @@ export default function VisitorLogScreen() {
           <FormField label="Notes" value={form.notes} onChangeText={(v: string) => setForm(f => ({ ...f, notes: v }))} placeholder="Additional notes" multiline />
 
           <Button
-            title={signIn.isPending ? 'Signing In...' : 'Sign In Visitor'}
+            label={signIn.isPending ? 'Signing In...' : 'Sign In Visitor'}
             onPress={() => signIn.mutate()}
             disabled={signIn.isPending}
             style={{ marginTop: Spacing.lg }}

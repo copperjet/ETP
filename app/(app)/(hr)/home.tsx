@@ -25,7 +25,7 @@ function useHRDashboard(schoolId: string) {
       const [staffRes, pendingLeaveRes, allLeaveRes] = await Promise.all([
         (supabase as any).from('staff').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('status', 'active'),
         (supabase as any).from('leave_requests').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('status', 'pending'),
-        (supabase as any).from('leave_requests').select('*').eq('school_id', schoolId).order('created_at', { ascending: false }).limit(5),
+        (supabase as any).from('leave_requests').select('*, staff:staff_id(full_name)').eq('school_id', schoolId).order('created_at', { ascending: false }).limit(5),
       ]);
       return {
         staffCount: staffRes.count ?? 0,
@@ -69,24 +69,31 @@ export default function HRHome() {
         </View>
 
         {/* Stats */}
-        <View style={styles.statRow}>
-          <StatCard
-            label="Staff"
-            value={data?.staffCount ?? 0}
-            icon="people"
-            iconBg={Colors.semantic.infoLight}
-            iconColor={Colors.semantic.info}
-            style={styles.statCell}
-          />
-          <StatCard
-            label="Pending Leave"
-            value={data?.pendingLeaveCount ?? 0}
-            icon="calendar"
-            iconBg={Colors.semantic.warningLight}
-            iconColor={Colors.semantic.warning}
-            style={styles.statCell}
-          />
-        </View>
+        {isLoading ? (
+          <View style={styles.statRow}>
+            <View style={[styles.statCell, { height: 80, backgroundColor: colors.surfaceSecondary, borderRadius: 12 }]} />
+            <View style={[styles.statCell, { height: 80, backgroundColor: colors.surfaceSecondary, borderRadius: 12 }]} />
+          </View>
+        ) : (
+          <View style={styles.statRow}>
+            <StatCard
+              label="Staff"
+              value={data?.staffCount ?? 0}
+              icon="people"
+              iconBg={Colors.semantic.infoLight}
+              iconColor={Colors.semantic.info}
+              style={styles.statCell}
+            />
+            <StatCard
+              label="Pending Leave"
+              value={data?.pendingLeaveCount ?? 0}
+              icon="calendar"
+              iconBg={Colors.semantic.warningLight}
+              iconColor={Colors.semantic.warning}
+              style={styles.statCell}
+            />
+          </View>
+        )}
 
         {/* Quick Actions */}
         <SectionHeader title="Quick Actions" />
@@ -110,18 +117,27 @@ export default function HRHome() {
         {/* Recent Leave Requests */}
         <SectionHeader title="Recent Leave Requests" />
         {isLoading ? (
-          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.lg }}><ThemedText>Loading...</ThemedText></Card>
+          <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.sm }}>
+            {[0, 1, 2].map(i => (
+              <Card key={i} style={{ padding: Spacing.md }}>
+                <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4, marginBottom: 8 }} />
+                <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              </Card>
+            ))}
+          </View>
         ) : data?.recentLeaves.length === 0 ? (
           <EmptyState title="No leave requests" description="Staff leave requests appear here." icon="calendar-outline" />
         ) : (
           data?.recentLeaves.map((leave: any) => (
             <Card key={leave.id} style={{ marginHorizontal: Spacing.screen, marginBottom: Spacing.sm, padding: Spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View>
-                  <ThemedText style={{ fontWeight: '600' }}>
-                    {leave.start_date} to {leave.end_date}
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={{ fontWeight: '600' }} numberOfLines={1}>
+                    {leave.staff?.full_name ?? 'Staff'}
                   </ThemedText>
-                  <ThemedText variant="caption" color="muted">{leave.leave_type}</ThemedText>
+                  <ThemedText variant="caption" color="muted">
+                    {leave.start_date ? format(new Date(leave.start_date), 'd MMM') : '—'} – {leave.end_date ? format(new Date(leave.end_date), 'd MMM') : '—'} · {leave.leave_type}
+                  </ThemedText>
                 </View>
                 <Badge
                   label={leave.status}

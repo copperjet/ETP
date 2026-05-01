@@ -13,12 +13,21 @@ function useStudentMarks(studentId: string | null, schoolId: string) {
     enabled: !!studentId && !!schoolId,
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data: sem } = await (supabase as any)
+        .from('semesters')
+        .select('id')
+        .eq('school_id', schoolId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      let query = (supabase as any)
         .from('marks')
         .select('id, assessment_type, value, raw_total, is_excused, excused_reason, subjects(name), semesters(name)')
         .eq('student_id', studentId!)
         .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
+      if (sem?.id) query = query.eq('semester_id', sem.id);
+      const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
     },
@@ -67,7 +76,16 @@ export default function StudentMarks() {
         </View>
 
         {isLoading ? (
-          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}><ThemedText>Loading...</ThemedText></Card>
+          <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.sm }}>
+            {[0,1,2].map(i => (
+              <Card key={i} style={{ padding: Spacing.md }}>
+                <View style={{ gap: 8 }}>
+                  <View style={{ height: 16, width: '50%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+                  <View style={{ height: 12, width: '30%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+                </View>
+              </Card>
+            ))}
+          </View>
         ) : Object.keys(grouped).length === 0 ? (
           <EmptyState title="No marks yet" description="Marks appear once teachers enter them." icon="school-outline" />
         ) : (

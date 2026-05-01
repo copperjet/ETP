@@ -1,14 +1,23 @@
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs, Redirect, Slot } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
-import { AppTabBar } from '../../../components/ui';
+import { AppTabBar, ResponsiveShell } from '../../../components/ui';
+import { useShouldShowSidebar } from '../../../lib/responsive';
 
 export default function FinanceLayout() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
+  const showSidebar = useShouldShowSidebar();
   if (user && user.activeRole !== 'finance') {
     return <Redirect href="/" />;
+  }
+  if (showSidebar) {
+    return (
+      <ResponsiveShell>
+        <Slot />
+      </ResponsiveShell>
+    );
   }
   return (
     <Tabs

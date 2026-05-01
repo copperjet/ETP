@@ -21,45 +21,56 @@ import { StreamPicker } from '../../../components/modules/StreamPicker';
  * Falls back to an empty payload while migration 036 is being deployed
  * so the screen never crashes on missing function.
  */
-function useAdminDashboard(schoolId: string) {
+function useAdminDashboard(schoolId: string, streamId?: string | null) {
   return useQuery({
-    queryKey: ['admin-dashboard', schoolId],
+    queryKey: ['admin-dashboard', schoolId, streamId ?? 'all'],
     enabled: !!schoolId,
     staleTime: 1000 * 60 * 3,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_admin_dashboard', {
-        p_school_id: schoolId,
-      });
-      if (error) {
-        // Fallback: legacy parallel queries while 036 deploys.
-        const [studentsRes, staffRes, pendingReportsRes, semesterRes, attendanceTodayRes] =
-          await Promise.all([
-            (supabase as any).from('students').select('id', { count: 'exact', head: true })
-              .eq('school_id', schoolId).eq('status', 'active'),
-            (supabase as any).from('staff').select('id', { count: 'exact', head: true })
-              .eq('school_id', schoolId).eq('status', 'active'),
-            (supabase as any).from('reports').select('id', { count: 'exact', head: true })
-              .eq('school_id', schoolId).eq('status', 'pending_approval'),
-            (supabase as any).from('semesters').select('id, name, start_date, end_date, is_active')
-              .eq('school_id', schoolId).eq('is_active', true).limit(1).maybeSingle(),
-            (supabase as any).from('attendance_records').select('student_id, status')
-              .eq('school_id', schoolId).eq('date', format(new Date(), 'yyyy-MM-dd')),
-          ]);
-        const attData = (attendanceTodayRes.data ?? []) as any[];
-        return {
-          studentCount: studentsRes.count ?? 0,
-          staffCount: staffRes.count ?? 0,
-          pendingReports: pendingReportsRes.count ?? 0,
-          semester: semesterRes.data as any,
-          presentToday: attData.filter((a: any) => a.status === 'present').length,
-          totalAttToday: attData.length,
-          teacherCount: 0, // Fallback - RPC returns real count
-        };
+      if (!streamId) {
+        const { data, error } = await (supabase.rpc as any)('get_admin_dashboard', {
+          p_school_id: schoolId,
+        });
+        if (!error) {
+          return data as {
+            studentCount: number; staffCount: number; pendingReports: number;
+            semester: any; presentToday: number; totalAttToday: number;
+            teacherCount?: number;
+          };
+        }
       }
-      return data as {
-        studentCount: number; staffCount: number; pendingReports: number;
-        semester: any; presentToday: number; totalAttToday: number;
-        teacherCount?: number;
+
+      let studentsQuery = (supabase as any).from('students').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).eq('status', 'active');
+      if (streamId) studentsQuery = studentsQuery.eq('stream_id', streamId);
+
+      let reportsQuery = (supabase as any).from('reports').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).eq('status', 'pending_approval');
+      if (streamId) reportsQuery = reportsQuery.eq('stream_id', streamId);
+
+      let attQuery = (supabase as any).from('attendance_records').select('student_id, status')
+        .eq('school_id', schoolId).eq('date', format(new Date(), 'yyyy-MM-dd'));
+      if (streamId) attQuery = attQuery.eq('stream_id', streamId);
+
+      const [studentsRes, staffRes, pendingReportsRes, semesterRes, attendanceTodayRes] =
+        await Promise.all([
+          studentsQuery,
+          (supabase as any).from('staff').select('id', { count: 'exact', head: true })
+            .eq('school_id', schoolId).eq('status', 'active'),
+          reportsQuery,
+          (supabase as any).from('semesters').select('id, name, start_date, end_date, is_active')
+            .eq('school_id', schoolId).eq('is_active', true).limit(1).maybeSingle(),
+          attQuery,
+        ]);
+      const attData = (attendanceTodayRes.data ?? []) as any[];
+      return {
+        studentCount: studentsRes.count ?? 0,
+        staffCount: staffRes.count ?? 0,
+        pendingReports: pendingReportsRes.count ?? 0,
+        semester: semesterRes.data as any,
+        presentToday: attData.filter((a: any) => a.status === 'present').length,
+        totalAttToday: attData.length,
+        teacherCount: 0,
       };
     },
   });
@@ -71,7 +82,12 @@ const SCOPED_ADMIN_ROLES = ['principal', 'coordinator', 'hod']; // These see cla
 export default function AdminHome() {
   const { colors } = useTheme();
   const { user, school } = useAuthStore();
-  const { data, isLoading, isError, refetch, isFetching } = useAdminDashboard(user?.schoolId ?? '');
+
+  const isSuper = user ? SUPER_ROLES.includes(user.activeRole) : false;
+  const isScopedAdmin = user ? SCOPED_ADMIN_ROLES.includes(user.activeRole) : false;
+  const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
+
+  const { data, isLoading, isError, refetch, isFetching } = useAdminDashboard(user?.schoolId ?? '', isScopedAdmin ? selectedStreamId : null);
   const canStudents = useCanAccess('students');
   const canStaff = useCanAccess('staff');
   const canParents = useCanAccess('parents');
@@ -79,11 +95,6 @@ export default function AdminHome() {
   const canAttendance = useCanAccess('attendance');
   const canMarksMatrix = useCanAccess('marks_matrix');
   const canDaybook = useCanAccess('daybook');
-
-  const isSuper = user ? SUPER_ROLES.includes(user.activeRole) : false;
-  const isScopedAdmin = user ? SCOPED_ADMIN_ROLES.includes(user.activeRole) : false;
-
-  const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
 
   const TODAY = format(new Date(), 'EEEE, d MMM');
   const attPct = data?.totalAttToday
@@ -297,7 +308,7 @@ export default function AdminHome() {
                   subtitle="Manage enrolment"
                   icon="school-outline"
                   variant="surface"
-                  onPress={() => router.push('/(app)/(hrt)/students' as any)}
+                  onPress={() => router.push('/(app)/(admin)/students' as any)}
                   style={styles.qaCard}
                 />
               )}

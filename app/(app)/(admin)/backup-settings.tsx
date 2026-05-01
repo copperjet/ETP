@@ -78,7 +78,9 @@ export default function BackupSettingsScreen() {
           </View>
 
           {isLoading ? (
-            <ThemedText>Loading...</ThemedText>
+            <View style={{ gap: 8, marginTop: Spacing.md }}>
+              <View style={{ height: 14, width: '50%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
           ) : destination ? (
             <>
               <Badge label="Connected" preset="success" style={{ alignSelf: 'flex-start' }} />

@@ -9,7 +9,10 @@ import {
   ViewStyle,
   PanResponder,
   ScrollView,
+  Platform,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { Radius, Spacing } from '../../constants/Typography';
 import { ThemedText } from './ThemedText';
@@ -43,21 +46,24 @@ export function BottomSheet({ visible, onClose, title, children, snapHeight = SC
     }
   }, [visible]);
 
+  // PanResponder only works on mobile, skip on web
   const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 80 || g.vy > 0.8) {
-          onClose();
-        } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 20 }).start();
-        }
-      },
-    })
+    Platform.OS !== 'web'
+      ? PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
+          onPanResponderMove: (_, g) => {
+            if (g.dy > 0) translateY.setValue(g.dy);
+          },
+          onPanResponderRelease: (_, g) => {
+            if (g.dy > 80 || g.vy > 0.8) {
+              onClose();
+            } else {
+              Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 20 }).start();
+            }
+          },
+        })
+      : undefined
   ).current;
 
   return (
@@ -75,12 +81,22 @@ export function BottomSheet({ visible, onClose, title, children, snapHeight = SC
             transform: [{ translateY }],
           },
         ]}
+        {...(Platform.OS !== 'web' && panResponder ? { ...panResponder.panHandlers } : {})}
       >
-        <View {...panResponder.panHandlers} style={styles.handle}>
-          <View style={[styles.pill, { backgroundColor: colors.border }]} />
-          {title && (
-            <ThemedText variant="h4" style={styles.title}>{title}</ThemedText>
+        <View style={styles.handle}>
+          {Platform.OS !== 'web' && (
+            <View style={[styles.pill, { backgroundColor: colors.border }]} />
           )}
+          <View style={styles.headerRow}>
+            {title && (
+              <ThemedText variant="h4" style={styles.title}>{title}</ThemedText>
+            )}
+            {Platform.OS === 'web' && (
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <ScrollView
@@ -116,6 +132,13 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: Spacing.lg,
+  },
   pill: {
     width: 40,
     height: 4,
@@ -125,6 +148,10 @@ const styles = StyleSheet.create({
   title: {
     marginTop: Spacing.sm,
     marginBottom: Spacing.xs,
+    flex: 1,
+  },
+  closeBtn: {
+    padding: Spacing.sm,
   },
   content: {
     flex: 1,

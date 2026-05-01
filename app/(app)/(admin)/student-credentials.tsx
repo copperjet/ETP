@@ -108,7 +108,10 @@ export default function StudentCredentialsScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <ScreenHeader title="Student Credentials" showBack />
-        <ThemedText style={{ margin: Spacing.screen }}>Loading...</ThemedText>
+        <View style={{ padding: Spacing.screen, gap: 12 }}>
+          <View style={{ height: 20, width: '50%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+          <View style={{ height: 16, width: '70%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+        </View>
       </SafeAreaView>
     );
   }

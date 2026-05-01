@@ -147,7 +147,7 @@ export default function STHome() {
               return (
                 <Pressable
                   key={a.id}
-                  onPress={() => router.push({ pathname: '/(app)/(st)/marks' as any })}
+                  onPress={() => router.push({ pathname: '/(app)/(st)/marks-entry' as any, params: { assignmentId: a.id } })}
                   style={({ pressed }) => [
                     styles.assignCard,
                     { backgroundColor: colors.surface },

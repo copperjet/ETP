@@ -1,16 +1,13 @@
 import { Redirect } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 
 export default function Index() {
   const { user, isReady } = useAuthStore();
 
   if (!isReady) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
-    );
+    // Skeleton splash — neutral, no spinner
+    return <View style={{ flex: 1 }} />;
   }
 
   if (!user) return <Redirect href="/(auth)/school-code" />;

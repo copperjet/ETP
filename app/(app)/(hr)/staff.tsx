@@ -51,7 +51,12 @@ export default function HRStaff() {
         </View>
 
         {isLoading ? (
-          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ margin: Spacing.screen, padding: Spacing.lg }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : staff?.length === 0 ? (
           <EmptyState title="No staff found" description="Staff records appear once added by admin." icon="people-outline" />
         ) : (

@@ -1,15 +1,25 @@
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs, Redirect, Slot } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../stores/authStore';
 import { useTheme } from '../../../lib/theme';
-import { AppTabBar } from '../../../components/ui';
+import { AppTabBar, ResponsiveShell } from '../../../components/ui';
+import { useShouldShowSidebar } from '../../../lib/responsive';
 
 export default function HRLayout() {
   const { user } = useAuthStore();
   const { colors } = useTheme();
+  const showSidebar = useShouldShowSidebar();
 
   if (user?.activeRole !== 'hr') {
     return <Redirect href="/" />;
+  }
+
+  if (showSidebar) {
+    return (
+      <ResponsiveShell>
+        <Slot />
+      </ResponsiveShell>
+    );
   }
 
   return (

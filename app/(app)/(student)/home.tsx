@@ -102,7 +102,14 @@ export default function StudentHome() {
         {/* Student Card */}
         {isLoading || !profile ? (
           <View style={[styles.heroCard, { backgroundColor: colors.surface }]}>
-            <ThemedText>Loading...</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.surfaceSecondary }} />
+              <View style={{ flex: 1, marginLeft: Spacing.md, gap: 8 }}>
+                <View style={{ height: 18, width: '70%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+                <View style={{ height: 14, width: '50%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+                <View style={{ height: 12, width: '35%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              </View>
+            </View>
           </View>
         ) : (
           <View style={[styles.heroCard, { backgroundColor: colors.brand.primary }]}>
@@ -125,7 +132,7 @@ export default function StudentHome() {
         <SectionHeader title="This Term" />
         {isLoading ? (
           <View style={styles.statRow}>
-            {[0,1,2].map(i => <View key={i} style={[styles.statCell, { backgroundColor: colors.surface }]}><ThemedText>--</ThemedText></View>)}
+            {[0,1,2].map(i => <StatCard key={i} label="—" value="—" icon="ellipse" style={styles.statCell} />)}
           </View>
         ) : (
           <View style={styles.statRow}>
@@ -159,7 +166,12 @@ export default function StudentHome() {
         {/* Latest Report */}
         <SectionHeader title="Latest Report" />
         {isLoading ? (
-          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : data?.latestReport ? (
           <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -220,7 +232,12 @@ export default function StudentHome() {
         {/* Fees */}
         <SectionHeader title="Fees" />
         {isLoading ? (
-          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : data?.invoices && data.invoices.length > 0 ? (
           <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
@@ -252,7 +269,12 @@ export default function StudentHome() {
         {/* Recent Day Book */}
         <SectionHeader title="Recent Notes" />
         {isLoading ? (
-          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}><ThemedText>Loading...</ThemedText></Card>
+          <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
+            <View style={{ gap: 8 }}>
+              <View style={{ height: 16, width: '60%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+              <View style={{ height: 12, width: '40%', backgroundColor: colors.surfaceSecondary, borderRadius: 4 }} />
+            </View>
+          </Card>
         ) : data?.dayBook.length === 0 ? (
           <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
             <ThemedText color="muted">No notes yet.</ThemedText>
