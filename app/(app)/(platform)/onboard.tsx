@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView, Pressable,
   TextInput, Animated, Alert, KeyboardAvoidingView, Platform,
   TouchableOpacity,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../lib/theme';
 import { supabase } from '../../../lib/supabase';
 import { haptics } from '../../../lib/haptics';
@@ -20,20 +21,16 @@ type SubscriptionPlan   = 'starter' | 'growth' | 'scale' | 'enterprise';
 type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'cancelled';
 
 interface SchoolForm {
-  // Step 1 — Identity
   name: string;
   code: string;
   country: string;
   timezone: string;
   currency: string;
-  // Step 2 — Branding
   primary_color: string;
   secondary_color: string;
   logo_url: string;
-  // Step 3 — Subscription
   subscription_plan: SubscriptionPlan;
   subscription_status: SubscriptionStatus;
-  // Step 4 — First admin
   admin_email: string;
   admin_name: string;
   admin_password: string;
@@ -46,25 +43,21 @@ const BLANK: SchoolForm = {
   admin_email: '', admin_name: '', admin_password: '',
 };
 
-const STEPS = ['School Info', 'Branding', 'Subscription', 'Admin Account', 'Review'];
-const TOTAL = STEPS.length;
+const CREATE_STEPS = ['School Info', 'Branding', 'Subscription', 'Admin Account', 'Review'];
+const EDIT_STEPS   = ['School Info', 'Branding', 'Subscription', 'Review'];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StepDots({ current }: { current: number }) {
+function StepDots({ current, steps }: { current: number; steps: string[] }) {
   const { colors } = useTheme();
   return (
     <View style={styles.dotsRow}>
-      {STEPS.map((label, i) => (
+      {steps.map((_, i) => (
         <View key={i} style={styles.dotWrap}>
           <View style={[
             styles.dot,
             {
-              backgroundColor: i < current
-                ? colors.brand.primary
-                : i === current
-                  ? colors.brand.primary
-                  : colors.border,
+              backgroundColor: i <= current ? colors.brand.primary : colors.border,
               width: i === current ? 28 : 8,
             },
           ]}>
@@ -256,7 +249,6 @@ function Step2({ form, set }: { form: SchoolForm; set: (f: Partial<SchoolForm>) 
           Public URL to a PNG or SVG. Leave blank to use school initials.
         </ThemedText>
       </View>
-      {/* Live preview */}
       <View style={[styles.previewCard, { backgroundColor: form.primary_color }]}>
         <ThemedText style={{ color: '#fff', fontWeight: '800', fontSize: 20 }}>{form.name || 'School Name'}</ThemedText>
         <View style={[styles.previewBadge, { backgroundColor: form.secondary_color }]}>
@@ -311,7 +303,7 @@ function Step3({ form, set }: { form: SchoolForm; set: (f: Partial<SchoolForm>) 
         </View>
       </View>
       <View>
-        <FieldLabel label="Initial status" required />
+        <FieldLabel label="Status" required />
         <View style={styles.selectRow}>
           {STATUSES.map((s) => (
             <Pressable
@@ -375,9 +367,9 @@ function Step4({ form, set }: { form: SchoolForm; set: (f: Partial<SchoolForm>) 
   );
 }
 
-function Step5Review({ form }: { form: SchoolForm }) {
+function ReviewStep({ form, isEdit }: { form: SchoolForm; isEdit: boolean }) {
   const { colors } = useTheme();
-  const rows: { label: string; value: string }[] = [
+  const baseRows: { label: string; value: string }[] = [
     { label: 'School name',   value: form.name },
     { label: 'Code',          value: form.code },
     { label: 'Country',       value: form.country },
@@ -385,9 +377,12 @@ function Step5Review({ form }: { form: SchoolForm }) {
     { label: 'Currency',      value: form.currency },
     { label: 'Plan',          value: form.subscription_plan },
     { label: 'Status',        value: form.subscription_status },
+  ];
+  const adminRows: { label: string; value: string }[] = [
     { label: 'Admin name',    value: form.admin_name },
     { label: 'Admin email',   value: form.admin_email },
   ];
+  const rows = isEdit ? baseRows : [...baseRows, ...adminRows];
 
   return (
     <View style={styles.stepBody}>
@@ -424,7 +419,7 @@ function Step5Review({ form }: { form: SchoolForm }) {
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
-function validateStep(step: number, form: SchoolForm): string | null {
+function validateStep(step: number, form: SchoolForm, isEdit: boolean): string | null {
   if (step === 0) {
     if (!form.name.trim()) return 'School name is required.';
     if (!form.code.trim()) return 'School code is required.';
@@ -435,7 +430,7 @@ function validateStep(step: number, form: SchoolForm): string | null {
     if (!/^#[0-9A-Fa-f]{6}$/.test(form.primary_color)) return 'Invalid primary colour hex.';
     if (!/^#[0-9A-Fa-f]{6}$/.test(form.secondary_color)) return 'Invalid accent colour hex.';
   }
-  if (step === 3) {
+  if (!isEdit && step === 3) {
     if (!form.admin_name.trim()) return 'Admin name is required.';
     if (!form.admin_email.trim() || !form.admin_email.includes('@')) return 'Valid admin email required.';
     if (form.admin_password.length < 8) return 'Password must be at least 8 characters.';
@@ -447,11 +442,54 @@ function validateStep(step: number, form: SchoolForm): string | null {
 
 export default function SchoolOnboarding() {
   const { colors } = useTheme();
+  const { editSchoolId } = useLocalSearchParams<{ editSchoolId?: string }>();
+  const isEdit = !!editSchoolId;
+
+  const STEPS = isEdit ? EDIT_STEPS : CREATE_STEPS;
+  const TOTAL = STEPS.length;
+
   const [step, setStep]       = useState(0);
   const [form, setFormRaw]    = useState<SchoolForm>(BLANK);
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
   const slideAnim             = useRef(new Animated.Value(0)).current;
+
+  // Fetch existing school when in edit mode
+  const { data: existingSchool } = useQuery({
+    queryKey: ['school-edit', editSchoolId],
+    enabled: isEdit,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error: err } = await (supabase as any)
+        .from('schools')
+        .select('*')
+        .eq('id', editSchoolId)
+        .single();
+      if (err) throw new Error(err.message);
+      return data;
+    },
+  });
+
+  // Pre-fill form when school data loads
+  useEffect(() => {
+    if (existingSchool) {
+      setFormRaw({
+        name: existingSchool.name ?? '',
+        code: existingSchool.code ?? '',
+        country: existingSchool.country ?? 'Zambia',
+        timezone: existingSchool.timezone ?? 'Africa/Lusaka',
+        currency: existingSchool.currency ?? 'ZMW',
+        primary_color: existingSchool.primary_color ?? '#1B2A4A',
+        secondary_color: existingSchool.secondary_color ?? '#E8A020',
+        logo_url: existingSchool.logo_url ?? '',
+        subscription_plan: existingSchool.subscription_plan ?? 'growth',
+        subscription_status: existingSchool.subscription_status ?? 'trial',
+        admin_email: '',
+        admin_name: '',
+        admin_password: '',
+      });
+    }
+  }, [existingSchool]);
 
   const set = (patch: Partial<SchoolForm>) => {
     setFormRaw((f) => ({ ...f, ...patch }));
@@ -467,7 +505,7 @@ export default function SchoolOnboarding() {
   };
 
   const next = () => {
-    const err = validateStep(step, form);
+    const err = validateStep(step, form, isEdit);
     if (err) { setError(err); haptics.error(); return; }
     if (step < TOTAL - 1) {
       haptics.light();
@@ -485,14 +523,13 @@ export default function SchoolOnboarding() {
   };
 
   const handleCreate = async () => {
-    const err = validateStep(step, form);
+    const err = validateStep(step, form, false);
     if (err) { setError(err); haptics.error(); return; }
 
     setLoading(true);
     setError('');
 
     try {
-      // 1. Create school record
       const { data: school, error: schoolErr } = await (supabase as any)
         .from('schools')
         .insert({
@@ -512,7 +549,6 @@ export default function SchoolOnboarding() {
 
       if (schoolErr) throw new Error(schoolErr.message);
 
-      // 2. Create first admin via edge function (needs service role on backend)
       const { error: fnErr } = await (supabase as any).functions.invoke('create-school-admin', {
         body: {
           school_id: school.id,
@@ -522,24 +558,60 @@ export default function SchoolOnboarding() {
         },
       });
 
-      if (fnErr) {
-        // School created but admin creation failed — still success for school
-        console.warn('[onboarding] admin create failed:', fnErr.message);
-        haptics.success();
-        Alert.alert(
-          'School created',
-          `"${form.name}" onboarded successfully.\n\nAdmin account could not be created automatically — set it up manually in the Supabase dashboard.\n\nSchool code: ${form.code}`,
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
-        return;
+      haptics.success();
+
+      const warnMsg = fnErr
+        ? `"${form.name}" onboarded successfully.\n\nAdmin account could not be created automatically — set it up manually.\n\nSchool code: ${form.code}`
+        : `"${form.name}" is live.\n\nAdmin: ${form.admin_email}\nCode: ${form.code}`;
+      const warnTitle = fnErr ? 'School created' : 'School onboarded';
+
+      if (Platform.OS === 'web') {
+        window.alert(`${warnTitle}\n\n${warnMsg}`);
+        router.back();
+      } else {
+        Alert.alert(warnTitle, warnMsg, [{ text: 'Done', onPress: () => router.back() }]);
       }
+    } catch (e: any) {
+      setError(e?.message ?? 'Something went wrong. Try again.');
+      haptics.error();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    const err = validateStep(step, form, true);
+    if (err) { setError(err); haptics.error(); return; }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error: updateErr } = await (supabase as any)
+        .from('schools')
+        .update({
+          name: form.name.trim(),
+          code: form.code.trim(),
+          country: form.country.trim(),
+          timezone: form.timezone,
+          currency: form.currency,
+          primary_color: form.primary_color,
+          secondary_color: form.secondary_color,
+          logo_url: form.logo_url.trim() || null,
+          subscription_plan: form.subscription_plan,
+          subscription_status: form.subscription_status,
+        })
+        .eq('id', editSchoolId);
+
+      if (updateErr) throw new Error(updateErr.message);
 
       haptics.success();
-      Alert.alert(
-        'School onboarded',
-        `"${form.name}" is live.\n\nAdmin: ${form.admin_email}\nCode: ${form.code}`,
-        [{ text: 'Done', onPress: () => router.back() }],
-      );
+      if (Platform.OS === 'web') {
+        window.alert(`"${form.name}" updated successfully.`);
+        router.back();
+      } else {
+        Alert.alert('School updated', `"${form.name}" has been updated.`, [{ text: 'Done', onPress: () => router.back() }]);
+      }
     } catch (e: any) {
       setError(e?.message ?? 'Something went wrong. Try again.');
       haptics.error();
@@ -550,13 +622,22 @@ export default function SchoolOnboarding() {
 
   const isLast = step === TOTAL - 1;
 
-  const stepComponents = [
+  const createStepComponents = [
     <Step1 key={0} form={form} set={set} />,
     <Step2 key={1} form={form} set={set} />,
     <Step3 key={2} form={form} set={set} />,
     <Step4 key={3} form={form} set={set} />,
-    <Step5Review key={4} form={form} />,
+    <ReviewStep key={4} form={form} isEdit={false} />,
   ];
+
+  const editStepComponents = [
+    <Step1 key={0} form={form} set={set} />,
+    <Step2 key={1} form={form} set={set} />,
+    <Step3 key={2} form={form} set={set} />,
+    <ReviewStep key={3} form={form} isEdit={true} />,
+  ];
+
+  const stepComponents = isEdit ? editStepComponents : createStepComponents;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -566,7 +647,7 @@ export default function SchoolOnboarding() {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <ThemedText style={{ fontWeight: '700', fontSize: 16 }}>Onboard School</ThemedText>
+          <ThemedText style={{ fontWeight: '700', fontSize: 16 }}>{isEdit ? 'Edit School' : 'Onboard School'}</ThemedText>
           <ThemedText variant="caption" color="muted">{STEPS[step]}</ThemedText>
         </View>
         <View style={{ width: 36 }} />
@@ -575,7 +656,7 @@ export default function SchoolOnboarding() {
       {/* Progress */}
       <View style={styles.progressWrap}>
         <ProgressBar value={step + 1} max={TOTAL} />
-        <StepDots current={step} />
+        <StepDots current={step} steps={STEPS} />
       </View>
 
       {/* Body */}
@@ -589,7 +670,6 @@ export default function SchoolOnboarding() {
             {stepComponents[step]}
           </Animated.View>
 
-          {/* Error */}
           {!!error && (
             <View style={[styles.errorBox, { backgroundColor: '#FEE2E2' }]}>
               <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
@@ -602,8 +682,8 @@ export default function SchoolOnboarding() {
       {/* Footer CTA */}
       <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <Button
-          label={isLast ? 'Create School' : 'Continue'}
-          onPress={isLast ? handleCreate : next}
+          label={isLast ? (isEdit ? 'Save Changes' : 'Create School') : 'Continue'}
+          onPress={isLast ? (isEdit ? handleUpdate : handleCreate) : next}
           loading={loading}
           fullWidth
           size="lg"

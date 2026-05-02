@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import {
   View, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, Alert, TextInput,
+  TouchableOpacity, Alert, TextInput, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,18 +58,17 @@ export default function BroadcastScreen() {
 
   const handleSend = () => {
     if (!canSend) return;
-
     const target = selectedSchool ? `"${selectedSchool.name}"` : 'ALL schools';
     const audienceLabel = AUDIENCE_OPTIONS.find((a) => a.value === audience)?.label ?? audience;
-
-    Alert.alert(
-      'Send Broadcast?',
-      `Send "${title}" to ${audienceLabel} at ${target}. This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Send', style: 'default', onPress: doSend },
-      ],
-    );
+    const msg = `Send "${title}" to ${audienceLabel} at ${target}. This cannot be undone.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Send Broadcast?\n\n${msg}`)) doSend();
+      return;
+    }
+    Alert.alert('Send Broadcast?', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Send', style: 'default', onPress: doSend },
+    ]);
   };
 
   const doSend = async () => {
@@ -114,14 +113,17 @@ export default function BroadcastScreen() {
       if (!res.ok) throw new Error(json.error ?? 'Broadcast failed');
 
       haptics.success();
-      Alert.alert(
-        'Broadcast Sent',
-        `Delivered to ${json.targeted ?? json.sent ?? 0} users.`,
-        [{ text: 'OK', onPress: () => { setTitle(''); setMessage(''); } }],
-      );
+      const sent = json.targeted ?? json.sent ?? 0;
+      if (Platform.OS === 'web') {
+        window.alert(`Broadcast Sent\n\nDelivered to ${sent} users.`);
+        setTitle(''); setMessage('');
+      } else {
+        Alert.alert('Broadcast Sent', `Delivered to ${sent} users.`, [{ text: 'OK', onPress: () => { setTitle(''); setMessage(''); } }]);
+      }
     } catch (e: any) {
       haptics.error();
-      Alert.alert('Send Failed', e.message ?? 'Could not send broadcast.');
+      if (Platform.OS === 'web') { window.alert(`Send Failed\n${e.message ?? 'Could not send broadcast.'}`); }
+      else { Alert.alert('Send Failed', e.message ?? 'Could not send broadcast.'); }
     } finally {
       setSending(false);
     }

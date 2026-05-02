@@ -6,13 +6,12 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useTheme } from '../../../lib/theme';
 import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Button, ErrorState, StatCard, SectionHeader, ListItemSkeleton, BottomSheet,
+  ThemedText, Button, ErrorState, StatCard, SectionHeader, ListItemSkeleton,
 } from '../../../components/ui';
 import { Spacing, Radius, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
@@ -20,7 +19,7 @@ import { haptics } from '../../../lib/haptics';
 import {
   useUpdateSchoolPlatform, useSchoolNotes, useCreateSchoolNote,
   useDeleteSchoolNote, usePinSchoolNote, useImpersonateSchool,
-  useImpersonationLog, uploadSchoolLogoFile,
+  useImpersonationLog,
   useDeleteSchool, useSchoolAdmins, useInviteSchoolAdmin,
 } from '../../../hooks/usePlatform';
 
@@ -40,10 +39,10 @@ const STATUS_OPTIONS: { value: SubscriptionStatus; label: string; color: string 
 ];
 
 const PLAN_OPTIONS: { value: SubscriptionPlan; label: string; desc: string; price: string }[] = [
-  { value: 'starter',    label: 'Starter',    desc: 'Up to 200 students',   price: '$49/mo' },
-  { value: 'growth',     label: 'Growth',     desc: 'Up to 500 students',   price: '$149/mo' },
-  { value: 'scale',      label: 'Scale',      desc: 'Up to 2 000 students', price: '$399/mo' },
-  { value: 'enterprise', label: 'Enterprise', desc: 'Unlimited',            price: '$999/mo' },
+  { value: 'starter',    label: 'Starter',    desc: 'Up to 200 students',   price: 'K1,250/mo' },
+  { value: 'growth',     label: 'Growth',     desc: 'Up to 500 students',   price: 'K3,750/mo' },
+  { value: 'scale',      label: 'Scale',      desc: 'Up to 2 000 students', price: 'K10,000/mo' },
+  { value: 'enterprise', label: 'Enterprise', desc: 'Unlimited',            price: 'K25,000/mo' },
 ];
 
 // ── useSchoolDetail ───────────────────────────────────────────────────────────
@@ -67,78 +66,15 @@ function useSchoolDetail(schoolId: string) {
 
 function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors: any; refetch: () => void; isFetching: boolean }) {
   const updateSchool = useUpdateSchoolPlatform(school.id);
-  const [editVisible, setEditVisible] = useState(false);
-  const [editForm, setEditForm] = useState({
-    name: school.name ?? '',
-    country: school.country ?? '',
-    timezone: school.timezone ?? '',
-    currency: school.currency ?? '',
-    primary_color: school.primary_color ?? '#1B2A4A',
-    secondary_color: school.secondary_color ?? '#E8A020',
-    logo_url: school.logo_url ?? '',
-    pending_base64: null as string | null,
-    pending_mime: null as string | null,
-  });
-  const [savingEdit, setSavingEdit] = useState(false);
-
-  const openEdit = () => {
-    setEditForm({
-      name: school.name ?? '',
-      country: school.country ?? '',
-      timezone: school.timezone ?? '',
-      currency: school.currency ?? '',
-      primary_color: school.primary_color ?? '#1B2A4A',
-      secondary_color: school.secondary_color ?? '#E8A020',
-      logo_url: school.logo_url ?? '',
-      pending_base64: null,
-      pending_mime: null,
-    });
-    setEditVisible(true);
-  };
-
-  const pickLogo = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85, base64: true, allowsEditing: true, aspect: [1, 1], exif: false,
-    });
-    if (!result.canceled && result.assets[0]?.base64) {
-      setEditForm(f => ({ ...f, pending_base64: result.assets[0].base64 ?? null, pending_mime: result.assets[0].mimeType ?? 'image/jpeg' }));
-    }
-  };
-
-  const saveEdit = async () => {
-    haptics.medium();
-    setSavingEdit(true);
-    try {
-      let logoUrl = editForm.logo_url.trim() || null;
-      if (editForm.pending_base64) {
-        logoUrl = await uploadSchoolLogoFile({
-          schoolId: school.id,
-          base64: editForm.pending_base64,
-          mimeType: editForm.pending_mime ?? 'image/jpeg',
-        });
-      }
-      await updateSchool.mutateAsync({
-        name: editForm.name.trim(),
-        country: editForm.country.trim(),
-        timezone: editForm.timezone.trim(),
-        currency: editForm.currency.trim().toUpperCase(),
-        primary_color: editForm.primary_color,
-        secondary_color: editForm.secondary_color,
-        logo_url: logoUrl ?? undefined,
-      });
-      haptics.success();
-      setEditVisible(false);
-    } catch (e: any) {
-      haptics.error();
-      Alert.alert('Save failed', e?.message ?? 'Could not save school changes.');
-    } finally {
-      setSavingEdit(false);
-    }
-  };
 
   const handleStatusChange = (status: SubscriptionStatus) => {
     if (status === school.subscription_status) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Set "${school.name}" to ${status.toUpperCase()}?`)) {
+        haptics.light(); updateSchool.mutate({ subscription_status: status });
+      }
+      return;
+    }
     Alert.alert('Change Status', `Set "${school.name}" to ${status.toUpperCase()}?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Confirm', onPress: () => { haptics.light(); updateSchool.mutate({ subscription_status: status }); } },
@@ -147,15 +83,17 @@ function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors:
 
   const handlePlanChange = (plan: SubscriptionPlan) => {
     if (plan === school.subscription_plan) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Switch "${school.name}" to ${plan.toUpperCase()} plan?`)) {
+        haptics.light(); updateSchool.mutate({ subscription_plan: plan });
+      }
+      return;
+    }
     Alert.alert('Change Plan', `Switch "${school.name}" to ${plan.toUpperCase()} plan?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Confirm', onPress: () => { haptics.light(); updateSchool.mutate({ subscription_plan: plan }); } },
     ]);
   };
-
-  const editPreview = editForm.pending_base64
-    ? `data:${editForm.pending_mime ?? 'image/jpeg'};base64,${editForm.pending_base64}`
-    : (editForm.logo_url || null);
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT }}
@@ -169,7 +107,11 @@ function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors:
       {/* School Info header with Edit button */}
       <View style={styles.sectionHeaderRow}>
         <ThemedText variant="label" color="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>SCHOOL INFO</ThemedText>
-        <TouchableOpacity onPress={openEdit} style={styles.editChip} hitSlop={8}>
+        <TouchableOpacity
+          onPress={() => router.push((`/(app)/(platform)/onboard?editSchoolId=${school.id}`) as any)}
+          style={styles.editChip}
+          hitSlop={8}
+        >
           <Ionicons name="create-outline" size={14} color={colors.brand.primary} />
           <ThemedText style={{ color: colors.brand.primary, fontWeight: '700', fontSize: 12, marginLeft: 4 }}>Edit</ThemedText>
         </TouchableOpacity>
@@ -194,64 +136,6 @@ function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors:
           </View>
         ))}
       </View>
-
-      {/* Edit sheet */}
-      <BottomSheet visible={editVisible} onClose={() => setEditVisible(false)} title="Edit School" snapHeight={780}>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md, padding: Spacing.base, paddingBottom: Spacing['2xl'] }}>
-          {/* Logo picker */}
-          <View>
-            <ThemedText variant="label" color="muted" style={styles.editLabel}>LOGO</ThemedText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
-              <Pressable onPress={pickLogo} style={[styles.editLogoBox, { borderColor: colors.border, backgroundColor: colors.surfaceSecondary }]}>
-                {editPreview ? (
-                  <Image source={{ uri: editPreview }} style={{ width: 76, height: 76, borderRadius: 12 }} resizeMode="contain" />
-                ) : (
-                  <Ionicons name="image-outline" size={26} color={colors.textMuted} />
-                )}
-              </Pressable>
-              <Pressable onPress={pickLogo} style={[styles.editLinkBtn, { borderColor: colors.brand.primary }]}>
-                <Ionicons name="cloud-upload-outline" size={14} color={colors.brand.primary} />
-                <ThemedText style={{ color: colors.brand.primary, fontWeight: '600', fontSize: 13, marginLeft: 4 }}>
-                  {editForm.pending_base64 ? 'Change' : 'Upload'}
-                </ThemedText>
-              </Pressable>
-            </View>
-            <TextInput
-              value={editForm.logo_url}
-              onChangeText={(t) => setEditForm(f => ({ ...f, logo_url: t, pending_base64: t ? null : f.pending_base64 }))}
-              placeholder="…or paste a public logo URL"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-              keyboardType="url"
-              style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary, marginTop: Spacing.sm }]}
-            />
-          </View>
-
-          <EditField label="NAME" value={editForm.name} onChange={(t) => setEditForm(f => ({ ...f, name: t }))} colors={colors} />
-          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            <View style={{ flex: 1 }}><EditField label="COUNTRY" value={editForm.country} onChange={(t) => setEditForm(f => ({ ...f, country: t }))} colors={colors} /></View>
-            <View style={{ flex: 1 }}><EditField label="CURRENCY" value={editForm.currency} onChange={(t) => setEditForm(f => ({ ...f, currency: t.toUpperCase() }))} colors={colors} /></View>
-          </View>
-          <EditField label="TIMEZONE" value={editForm.timezone} onChange={(t) => setEditForm(f => ({ ...f, timezone: t }))} colors={colors} />
-
-          <ColorSwatchField
-            label="PRIMARY COLOR"
-            value={editForm.primary_color}
-            onChange={(t) => setEditForm(f => ({ ...f, primary_color: t }))}
-            colors={colors}
-          />
-          <ColorSwatchField
-            label="ACCENT COLOR"
-            value={editForm.secondary_color}
-            onChange={(t) => setEditForm(f => ({ ...f, secondary_color: t }))}
-            colors={colors}
-          />
-
-          <TouchableOpacity onPress={saveEdit} disabled={savingEdit} style={[styles.saveBtn, { backgroundColor: savingEdit ? colors.border : colors.brand.primary }]}>
-            <ThemedText style={{ color: '#fff', fontWeight: '700' }}>{savingEdit ? 'Saving…' : 'Save Changes'}</ThemedText>
-          </TouchableOpacity>
-        </ScrollView>
-      </BottomSheet>
 
       <SectionHeader title="Subscription Status" />
       <View style={styles.chipRow}>
@@ -680,106 +564,38 @@ const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.screen, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
   editChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, borderColor: 'transparent' },
   editLabel: { fontSize: 10, letterSpacing: 0.5, marginBottom: 6 },
-  editLogoBox: { width: 84, height: 84, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  editLinkBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1.5 },
   editInput:   { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, fontSize: 14 },
   saveBtn:     { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.lg, marginTop: Spacing.sm },
-  swatchRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  swatch:      { width: 30, height: 30, borderRadius: 15 },
-  colorPreview:{ width: 22, height: 22, borderRadius: 11, marginRight: Spacing.sm },
-  swatchInput: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: Radius.md, borderWidth: 1.5, paddingHorizontal: Spacing.base },
   adminCard:   { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, borderRadius: Radius.md, borderWidth: 1, gap: Spacing.sm },
   roleBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full },
   dangerCard:  { borderRadius: Radius.md, borderWidth: 1.5, padding: Spacing.base },
   dangerBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1.5, marginTop: Spacing.sm },
 });
 
-function EditField({ label, value, onChange, colors }: { label: string; value: string; onChange: (t: string) => void; colors: any }) {
-  return (
-    <View>
-      <ThemedText variant="label" color="muted" style={styles.editLabel}>{label}</ThemedText>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholderTextColor={colors.textMuted}
-        style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]}
-      />
-    </View>
-  );
-}
-
-const COLOR_PRESETS = [
-  '#1B2A4A', '#0F5132', '#1D4ED8', '#7C3AED', '#BE185D',
-  '#EA580C', '#E8A020', '#0F766E', '#374151', '#1F2937',
-];
-
-function ColorSwatchField({ label, value, onChange, colors }: { label: string; value: string; onChange: (t: string) => void; colors: any }) {
-  return (
-    <View style={{ gap: 8 }}>
-      <ThemedText variant="label" color="muted" style={styles.editLabel}>{label}</ThemedText>
-      <View style={styles.swatchRow}>
-        {COLOR_PRESETS.map((c) => (
-          <Pressable
-            key={c}
-            onPress={() => { haptics.light(); onChange(c); }}
-            style={[styles.swatch, { backgroundColor: c, borderWidth: value === c ? 3 : 1, borderColor: value === c ? colors.textPrimary : 'transparent' }]}
-          />
-        ))}
-      </View>
-      <View style={[styles.swatchInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-        <View style={[styles.colorPreview, { backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(value) ? value : colors.border }]} />
-        <TextInput
-          value={value}
-          onChangeText={(t) => { if (t.startsWith('#') && t.length <= 7) onChange(t); }}
-          placeholder="#1B2A4A"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="characters"
-          maxLength={7}
-          style={{ flex: 1, fontSize: 14, color: colors.textPrimary, fontFamily: 'monospace' }}
-        />
-      </View>
-    </View>
-  );
-}
 
 function DangerZone({ school }: { school: any }) {
   const deleteSchool = useDeleteSchool(school.id);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const { colors } = useTheme();
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete School',
-      `Permanently delete "${school.name}"?\n\nThis removes ALL school data including students, staff, grades, and reports. This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Final confirmation',
-              `Type the school code to confirm: ${school.code}\n\nAre you absolutely sure?`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete forever',
-                  style: 'destructive',
-                  onPress: async () => {
-                    haptics.error();
-                    try {
-                      await deleteSchool.mutateAsync();
-                      haptics.success();
-                      router.back();
-                    } catch (e: any) {
-                      Alert.alert('Delete failed', e?.message ?? 'Could not delete school.');
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+  const nameMatches = nameInput.trim().toLowerCase() === school.name.trim().toLowerCase();
+
+  const handleDelete = async () => {
+    if (!nameMatches) return;
+    haptics.error();
+    try {
+      await deleteSchool.mutateAsync();
+      haptics.success();
+      router.back();
+    } catch (e: any) {
+      haptics.error();
+      if (Platform.OS === 'web') {
+        window.alert(`Delete failed\n${e?.message ?? 'Could not delete school.'}`);
+      } else {
+        Alert.alert('Delete failed', e?.message ?? 'Could not delete school.');
+      }
+    }
   };
 
   return (
@@ -791,16 +607,52 @@ function DangerZone({ school }: { school: any }) {
           <ThemedText style={{ fontSize: 13, color: '#9F1239', lineHeight: 19 }}>
             Permanently removes this school and all associated data. Irreversible.
           </ThemedText>
-          <TouchableOpacity
-            onPress={handleDelete}
-            disabled={deleteSchool.isPending}
-            style={[styles.dangerBtn, { borderColor: '#DC2626', backgroundColor: deleteSchool.isPending ? '#FEE2E2' : 'transparent' }]}
-          >
-            <Ionicons name="trash-outline" size={16} color="#DC2626" />
-            <ThemedText style={{ color: '#DC2626', fontWeight: '700', fontSize: 14, marginLeft: 6 }}>
-              {deleteSchool.isPending ? 'Deleting…' : 'Delete School'}
-            </ThemedText>
-          </TouchableOpacity>
+
+          {!showConfirm ? (
+            <TouchableOpacity
+              onPress={() => { setShowConfirm(true); setNameInput(''); }}
+              style={[styles.dangerBtn, { borderColor: '#DC2626', backgroundColor: 'transparent', marginTop: Spacing.sm }]}
+            >
+              <Ionicons name="trash-outline" size={16} color="#DC2626" />
+              <ThemedText style={{ color: '#DC2626', fontWeight: '700', fontSize: 14, marginLeft: 6 }}>Delete School</ThemedText>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ marginTop: Spacing.md, gap: Spacing.sm }}>
+              <ThemedText style={{ fontSize: 12, color: '#9F1239', fontWeight: '600' }}>
+                Type the school name to confirm: <ThemedText style={{ fontWeight: '800' }}>{school.name}</ThemedText>
+              </ThemedText>
+              <TextInput
+                value={nameInput}
+                onChangeText={setNameInput}
+                placeholder={school.name}
+                placeholderTextColor="#FECDD3"
+                autoCapitalize="none"
+                style={{
+                  borderWidth: 1.5, borderColor: nameInput ? (nameMatches ? '#10B981' : '#DC2626') : '#FECDD3',
+                  borderRadius: Radius.md, padding: Spacing.md, fontSize: 14, color: '#1F2937',
+                  backgroundColor: '#FFF',
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <TouchableOpacity
+                  onPress={() => { setShowConfirm(false); setNameInput(''); }}
+                  style={[styles.dangerBtn, { flex: 1, borderColor: colors.border, backgroundColor: 'transparent' }]}
+                >
+                  <ThemedText style={{ color: colors.textMuted, fontWeight: '600', fontSize: 14 }}>Cancel</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDelete}
+                  disabled={!nameMatches || deleteSchool.isPending}
+                  style={[styles.dangerBtn, { flex: 1, borderColor: '#DC2626', backgroundColor: nameMatches ? '#DC2626' : '#FEE2E2' }]}
+                >
+                  <Ionicons name="trash-outline" size={16} color={nameMatches ? '#fff' : '#DC2626'} />
+                  <ThemedText style={{ color: nameMatches ? '#fff' : '#DC2626', fontWeight: '700', fontSize: 14, marginLeft: 6 }}>
+                    {deleteSchool.isPending ? 'Deleting…' : 'Delete forever'}
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     </>

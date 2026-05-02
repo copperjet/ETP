@@ -23,15 +23,18 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey     = Deno.env.get("SUPABASE_ANON_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
-    const callerClient = createClient(supabaseUrl, serviceKey, {
+    const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
     const { data: { user: caller } } = await callerClient.auth.getUser();
     if (!caller) return json({ error: "Unauthorized" }, 401);
-    const callerRoles: string[] = (caller.app_metadata as any)?.roles ?? [];
-    if (!callerRoles.includes("super_admin")) {
+    const meta = (caller.app_metadata as any) ?? {};
+    const callerRoles: string[] = meta?.roles ?? [];
+    const isSuperAdmin = callerRoles.includes("super_admin") || meta?.role === "super_admin";
+    if (!isSuperAdmin) {
       return json({ error: "Forbidden" }, 403);
     }
 
