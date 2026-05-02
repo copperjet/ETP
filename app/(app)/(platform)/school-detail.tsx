@@ -21,13 +21,14 @@ import {
   useUpdateSchoolPlatform, useSchoolNotes, useCreateSchoolNote,
   useDeleteSchoolNote, usePinSchoolNote, useImpersonateSchool,
   useImpersonationLog, uploadSchoolLogoFile,
+  useDeleteSchool, useSchoolAdmins, useInviteSchoolAdmin,
 } from '../../../hooks/usePlatform';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SubscriptionStatus = 'active' | 'trial' | 'suspended' | 'cancelled';
 type SubscriptionPlan   = 'starter' | 'growth' | 'scale' | 'enterprise';
-type Tab = 'info' | 'usage' | 'notes';
+type Tab = 'info' | 'usage' | 'notes' | 'admins';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -195,8 +196,8 @@ function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors:
       </View>
 
       {/* Edit sheet */}
-      <BottomSheet visible={editVisible} onClose={() => setEditVisible(false)} title="Edit School" snapHeight={620}>
-        <View style={{ gap: Spacing.md, padding: Spacing.base }}>
+      <BottomSheet visible={editVisible} onClose={() => setEditVisible(false)} title="Edit School" snapHeight={780}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md, padding: Spacing.base, paddingBottom: Spacing['2xl'] }}>
           {/* Logo picker */}
           <View>
             <ThemedText variant="label" color="muted" style={styles.editLabel}>LOGO</ThemedText>
@@ -233,15 +234,23 @@ function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors:
           </View>
           <EditField label="TIMEZONE" value={editForm.timezone} onChange={(t) => setEditForm(f => ({ ...f, timezone: t }))} colors={colors} />
 
-          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            <View style={{ flex: 1 }}><EditField label="PRIMARY COLOR" value={editForm.primary_color} onChange={(t) => setEditForm(f => ({ ...f, primary_color: t }))} colors={colors} /></View>
-            <View style={{ flex: 1 }}><EditField label="ACCENT COLOR" value={editForm.secondary_color} onChange={(t) => setEditForm(f => ({ ...f, secondary_color: t }))} colors={colors} /></View>
-          </View>
+          <ColorSwatchField
+            label="PRIMARY COLOR"
+            value={editForm.primary_color}
+            onChange={(t) => setEditForm(f => ({ ...f, primary_color: t }))}
+            colors={colors}
+          />
+          <ColorSwatchField
+            label="ACCENT COLOR"
+            value={editForm.secondary_color}
+            onChange={(t) => setEditForm(f => ({ ...f, secondary_color: t }))}
+            colors={colors}
+          />
 
           <TouchableOpacity onPress={saveEdit} disabled={savingEdit} style={[styles.saveBtn, { backgroundColor: savingEdit ? colors.border : colors.brand.primary }]}>
             <ThemedText style={{ color: '#fff', fontWeight: '700' }}>{savingEdit ? 'Saving…' : 'Save Changes'}</ThemedText>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </BottomSheet>
 
       <SectionHeader title="Subscription Status" />
@@ -294,6 +303,8 @@ function InfoTab({ school, colors, refetch, isFetching }: { school: any; colors:
           <ThemedText style={{ color: '#DC2626', marginLeft: 6, flex: 1, fontSize: 14 }}>Update failed. Try again.</ThemedText>
         </View>
       )}
+
+      <DangerZone school={school} />
     </ScrollView>
   );
 }
@@ -563,9 +574,10 @@ export default function SchoolDetail() {
   }
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: 'info',  label: 'Info',  icon: 'information-circle-outline' },
-    { id: 'usage', label: 'Usage', icon: 'bar-chart-outline' },
-    { id: 'notes', label: 'Notes', icon: 'document-text-outline' },
+    { id: 'info',   label: 'Info',   icon: 'information-circle-outline' },
+    { id: 'admins', label: 'Admins', icon: 'people-circle-outline' },
+    { id: 'usage',  label: 'Usage',  icon: 'bar-chart-outline' },
+    { id: 'notes',  label: 'Notes',  icon: 'document-text-outline' },
   ];
 
   return (
@@ -628,9 +640,10 @@ export default function SchoolDetail() {
 
           {/* Tab content */}
           <View style={{ flex: 1 }}>
-            {activeTab === 'info'  && <InfoTab  school={school} colors={colors} refetch={refetch} isFetching={isFetching} />}
-            {activeTab === 'usage' && <UsageTab school={school} colors={colors} refetch={refetch} isFetching={isFetching} />}
-            {activeTab === 'notes' && <NotesTab school={school} colors={colors} />}
+            {activeTab === 'info'   && <InfoTab   school={school} colors={colors} refetch={refetch} isFetching={isFetching} />}
+            {activeTab === 'admins' && <AdminsTab school={school} colors={colors} />}
+            {activeTab === 'usage'  && <UsageTab  school={school} colors={colors} refetch={refetch} isFetching={isFetching} />}
+            {activeTab === 'notes'  && <NotesTab  school={school} colors={colors} />}
           </View>
         </View>
       ) : null}
@@ -671,6 +684,14 @@ const styles = StyleSheet.create({
   editLinkBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1.5 },
   editInput:   { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, fontSize: 14 },
   saveBtn:     { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.lg, marginTop: Spacing.sm },
+  swatchRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  swatch:      { width: 30, height: 30, borderRadius: 15 },
+  colorPreview:{ width: 22, height: 22, borderRadius: 11, marginRight: Spacing.sm },
+  swatchInput: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: Radius.md, borderWidth: 1.5, paddingHorizontal: Spacing.base },
+  adminCard:   { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, borderRadius: Radius.md, borderWidth: 1, gap: Spacing.sm },
+  roleBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full },
+  dangerCard:  { borderRadius: Radius.md, borderWidth: 1.5, padding: Spacing.base },
+  dangerBtn:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1.5, marginTop: Spacing.sm },
 });
 
 function EditField({ label, value, onChange, colors }: { label: string; value: string; onChange: (t: string) => void; colors: any }) {
@@ -684,5 +705,195 @@ function EditField({ label, value, onChange, colors }: { label: string; value: s
         style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]}
       />
     </View>
+  );
+}
+
+const COLOR_PRESETS = [
+  '#1B2A4A', '#0F5132', '#1D4ED8', '#7C3AED', '#BE185D',
+  '#EA580C', '#E8A020', '#0F766E', '#374151', '#1F2937',
+];
+
+function ColorSwatchField({ label, value, onChange, colors }: { label: string; value: string; onChange: (t: string) => void; colors: any }) {
+  return (
+    <View style={{ gap: 8 }}>
+      <ThemedText variant="label" color="muted" style={styles.editLabel}>{label}</ThemedText>
+      <View style={styles.swatchRow}>
+        {COLOR_PRESETS.map((c) => (
+          <Pressable
+            key={c}
+            onPress={() => { haptics.light(); onChange(c); }}
+            style={[styles.swatch, { backgroundColor: c, borderWidth: value === c ? 3 : 1, borderColor: value === c ? colors.textPrimary : 'transparent' }]}
+          />
+        ))}
+      </View>
+      <View style={[styles.swatchInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+        <View style={[styles.colorPreview, { backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(value) ? value : colors.border }]} />
+        <TextInput
+          value={value}
+          onChangeText={(t) => { if (t.startsWith('#') && t.length <= 7) onChange(t); }}
+          placeholder="#1B2A4A"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="characters"
+          maxLength={7}
+          style={{ flex: 1, fontSize: 14, color: colors.textPrimary, fontFamily: 'monospace' }}
+        />
+      </View>
+    </View>
+  );
+}
+
+function DangerZone({ school }: { school: any }) {
+  const deleteSchool = useDeleteSchool(school.id);
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete School',
+      `Permanently delete "${school.name}"?\n\nThis removes ALL school data including students, staff, grades, and reports. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Final confirmation',
+              `Type the school code to confirm: ${school.code}\n\nAre you absolutely sure?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete forever',
+                  style: 'destructive',
+                  onPress: async () => {
+                    haptics.error();
+                    try {
+                      await deleteSchool.mutateAsync();
+                      haptics.success();
+                      router.back();
+                    } catch (e: any) {
+                      Alert.alert('Delete failed', e?.message ?? 'Could not delete school.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <>
+      <SectionHeader title="Danger Zone" />
+      <View style={{ paddingHorizontal: Spacing.screen, paddingBottom: Spacing['2xl'] }}>
+        <View style={[styles.dangerCard, { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }]}>
+          <ThemedText style={{ fontSize: 13, fontWeight: '700', color: '#BE123C', marginBottom: 4 }}>Delete School</ThemedText>
+          <ThemedText style={{ fontSize: 13, color: '#9F1239', lineHeight: 19 }}>
+            Permanently removes this school and all associated data. Irreversible.
+          </ThemedText>
+          <TouchableOpacity
+            onPress={handleDelete}
+            disabled={deleteSchool.isPending}
+            style={[styles.dangerBtn, { borderColor: '#DC2626', backgroundColor: deleteSchool.isPending ? '#FEE2E2' : 'transparent' }]}
+          >
+            <Ionicons name="trash-outline" size={16} color="#DC2626" />
+            <ThemedText style={{ color: '#DC2626', fontWeight: '700', fontSize: 14, marginLeft: 6 }}>
+              {deleteSchool.isPending ? 'Deleting…' : 'Delete School'}
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </>
+  );
+}
+
+function AdminsTab({ school, colors }: { school: any; colors: any }) {
+  const { data: admins, isLoading } = useSchoolAdmins(school.id);
+  const invite = useInviteSchoolAdmin(school.id);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ full_name: '', email: '', password: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleInvite = async () => {
+    if (!form.full_name.trim() || !form.email.includes('@') || form.password.length < 8) {
+      Alert.alert('Validation', 'Name, valid email, and password (min 8 chars) required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await invite.mutateAsync({ full_name: form.full_name.trim(), email: form.email.trim().toLowerCase(), password: form.password });
+      haptics.success();
+      setForm({ full_name: '', email: '', password: '' });
+      setShowForm(false);
+      Alert.alert('Admin created', `${form.email} can now sign in.`);
+    } catch (e: any) {
+      haptics.error();
+      Alert.alert('Failed', e?.message ?? 'Could not create admin.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ROLE_COLORS: Record<string, string> = {
+    school_super_admin: '#7C3AED',
+    admin: Colors.semantic.info,
+    principal: Colors.semantic.success,
+  };
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT }}>
+      <View style={[styles.sectionHeaderRow, { paddingTop: Spacing.base }]}>
+        <ThemedText variant="label" color="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>SCHOOL ADMINS</ThemedText>
+        <TouchableOpacity onPress={() => setShowForm(!showForm)} style={[styles.editChip, { borderColor: colors.brand.primary }]} hitSlop={8}>
+          <Ionicons name={showForm ? 'close' : 'person-add-outline'} size={14} color={colors.brand.primary} />
+          <ThemedText style={{ color: colors.brand.primary, fontWeight: '700', fontSize: 12, marginLeft: 4 }}>
+            {showForm ? 'Cancel' : 'Add Admin'}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+
+      {showForm && (
+        <View style={[{ marginHorizontal: Spacing.screen, marginBottom: Spacing.base, padding: Spacing.base, borderRadius: Radius.md, borderWidth: 1, gap: Spacing.sm }, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <ThemedText variant="label" color="muted" style={styles.editLabel}>FULL NAME</ThemedText>
+          <TextInput value={form.full_name} onChangeText={(t) => setForm(f => ({ ...f, full_name: t }))} placeholder="Jane Mwansa" placeholderTextColor={colors.textMuted} style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]} />
+          <ThemedText variant="label" color="muted" style={styles.editLabel}>EMAIL</ThemedText>
+          <TextInput value={form.email} onChangeText={(t) => setForm(f => ({ ...f, email: t }))} placeholder="admin@school.edu" placeholderTextColor={colors.textMuted} autoCapitalize="none" keyboardType="email-address" style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]} />
+          <ThemedText variant="label" color="muted" style={styles.editLabel}>TEMP PASSWORD</ThemedText>
+          <TextInput value={form.password} onChangeText={(t) => setForm(f => ({ ...f, password: t }))} placeholder="Min 8 characters" placeholderTextColor={colors.textMuted} secureTextEntry style={[styles.editInput, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]} />
+          <TouchableOpacity onPress={handleInvite} disabled={saving} style={[styles.saveBtn, { backgroundColor: saving ? colors.border : colors.brand.primary }]}>
+            <ThemedText style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Creating…' : 'Create Admin'}</ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.sm }}>
+        {isLoading
+          ? [0, 1, 2].map((i) => <ListItemSkeleton key={i} />)
+          : (admins ?? []).length === 0
+            ? (
+              <View style={[styles.emptyNotes, { borderColor: colors.border }]}>
+                <Ionicons name="people-outline" size={28} color={colors.textMuted} />
+                <ThemedText color="muted" style={{ marginTop: 8, textAlign: 'center' }}>No admins found.</ThemedText>
+              </View>
+            )
+            : (admins ?? []).map((admin) => (
+              <View key={admin.id} style={[styles.adminCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: (ROLE_COLORS[admin.role] ?? colors.brand.primary) + '20', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="person-outline" size={18} color={ROLE_COLORS[admin.role] ?? colors.brand.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={{ fontWeight: '600', fontSize: 14 }}>{admin.full_name || '—'}</ThemedText>
+                  <ThemedText variant="caption" color="muted">{admin.email}</ThemedText>
+                </View>
+                <View style={[styles.roleBadge, { backgroundColor: (ROLE_COLORS[admin.role] ?? colors.brand.primary) + '20' }]}>
+                  <ThemedText style={{ fontSize: 11, fontWeight: '700', color: ROLE_COLORS[admin.role] ?? colors.brand.primary }}>
+                    {admin.role.replace('_', ' ').toUpperCase()}
+                  </ThemedText>
+                </View>
+              </View>
+            ))
+        }
+      </View>
+    </ScrollView>
   );
 }

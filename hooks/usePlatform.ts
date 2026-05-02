@@ -214,6 +214,67 @@ export function useUpdateSchoolPlatform(schoolId: string) {
   });
 }
 
+// ── Delete school ─────────────────────────────────────────────────────────────
+
+export function useDeleteSchool(schoolId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any)
+        .from('schools')
+        .delete()
+        .eq('id', schoolId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['platform-schools-overview'] });
+      qc.invalidateQueries({ queryKey: ['platform-metrics'] });
+    },
+  });
+}
+
+// ── School admins ─────────────────────────────────────────────────────────────
+
+export interface SchoolAdmin {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+export function useSchoolAdmins(schoolId: string) {
+  return useQuery<SchoolAdmin[]>({
+    queryKey: ['school-admins', schoolId],
+    enabled: !!schoolId,
+    staleTime: 1000 * 60 * 2,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('id, full_name, email, role, created_at')
+        .eq('school_id', schoolId)
+        .in('role', ['school_super_admin', 'admin', 'principal'])
+        .order('role')
+        .order('full_name');
+      if (error) throw new Error(error.message);
+      return (data ?? []) as SchoolAdmin[];
+    },
+  });
+}
+
+export function useInviteSchoolAdmin(schoolId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { email: string; full_name: string; password: string }) => {
+      const { error } = await (supabase as any).functions.invoke('create-school-admin', {
+        body: { school_id: schoolId, role: 'school_super_admin', ...payload },
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['school-admins', schoolId] }),
+  });
+}
+
 /**
  * Upload a logo image (base64) to Supabase Storage and return the public URL.
  * Caller is responsible for setting the URL on the school row afterwards.
