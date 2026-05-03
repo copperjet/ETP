@@ -3,14 +3,18 @@ import { useAuthStore } from '../stores/authStore';
 import { View } from 'react-native';
 
 export default function Index() {
-  const { user, isReady } = useAuthStore();
+  const { user, school, isReady } = useAuthStore();
 
   if (!isReady) {
     // Skeleton splash — neutral, no spinner
     return <View style={{ flex: 1 }} />;
   }
 
-  if (!user) return <Redirect href="/(auth)/school-code" />;
+  if (!user) {
+    // If we know the school already, skip school-code and go straight to login
+    if (school) return <Redirect href="/(auth)/login" />;
+    return <Redirect href="/(auth)/school-code" />;
+  }
 
   switch (user.activeRole) {
     case 'super_admin':

@@ -24,9 +24,11 @@ import { haptics } from '../../../lib/haptics';
 import type { UserRole } from '../../../types/database';
 
 // ── Constants ─────────────────────────────────────────────────
+// Roles that can be assigned to staff via the staff management screen.
+// school_super_admin is intentionally excluded — it is created only at
+// school onboarding by the platform admin and cannot be reassigned here.
 const ALL_ROLES: { value: UserRole; label: string }[] = [
   { value: 'admin',              label: 'Administrator' },
-  { value: 'school_super_admin', label: 'School Super Admin' },
   { value: 'principal',          label: 'Principal' },
   { value: 'coordinator',        label: 'Coordinator' },
   { value: 'hod',                label: 'Head of Department' },
@@ -36,7 +38,14 @@ const ALL_ROLES: { value: UserRole; label: string }[] = [
   { value: 'front_desk',         label: 'Front Desk' },
 ];
 
-const ROLE_LABELS: Record<string, string> = Object.fromEntries(ALL_ROLES.map(r => [r.value, r.label]));
+const ROLE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(ALL_ROLES.map(r => [r.value, r.label])),
+  school_super_admin: 'School Super Admin',
+  super_admin: 'Platform Admin',
+  parent: 'Parent',
+  student: 'Student',
+  hr: 'Human Resources',
+};
 
 // ── Data hooks ────────────────────────────────────────────────
 function useStaff(schoolId: string) {

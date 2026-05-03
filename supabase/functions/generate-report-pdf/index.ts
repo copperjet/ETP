@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
         id, status, hrt_comment, overall_percentage, class_position, student_id,
         students (
           id, full_name, student_number, date_of_birth, gender, photo_url,
-          streams ( name, grades ( name ), school_sections ( name ) )
+          streams ( name, grades ( id, name ), school_sections ( name ) )
         ),
         semesters ( id, name, start_date, end_date, academic_years ( name ) ),
         schools ( id, name, logo_url, primary_color, secondary_color,
@@ -68,16 +68,38 @@ Deno.serve(async (req) => {
       .eq('semester_id', semester.id)
       .not('value', 'is', null);
 
-    // Group by subject
-    const subjectMap: Record<string, { name: string; fa1: number | null; fa2: number | null; sum: number | null; teacher: string }> = {};
+    // ── Fetch assessment templates for this school + student's grade ──────────
+    const gradeId: string = (student as any).streams?.grades?.id ?? null;
+    const { data: templateRows } = await db
+      .from('assessment_templates')
+      .select(`
+        id, code, name, weight_percent, is_on_report, order_index,
+        assessment_template_grades ( grade_id )
+      `)
+      .eq('school_id', schoolId)
+      .eq('is_active', true)
+      .not('code', 'is', null)
+      .neq('code', 'biweekly')
+      .order('order_index');
+
+    // Filter by grade: include if no grade restrictions, or grade matches student
+    const assessments = ((templateRows ?? []) as any[]).filter((t: any) => {
+      const links: any[] = t.assessment_template_grades ?? [];
+      if (links.length === 0) return true;
+      return links.some((l: any) => l.grade_id === gradeId);
+    });
+
+    // Group marks by subject using dynamic assessment codes
+    type SubjectEntry = { name: string; marksByCode: Record<string, number | null>; teacher: string };
+    const subjectMap: Record<string, SubjectEntry> = {};
     ((marks ?? []) as any[]).forEach((m: any) => {
       const sId = m.subject_id;
       if (!subjectMap[sId]) {
-        subjectMap[sId] = { name: m.subjects?.name ?? sId, fa1: null, fa2: null, sum: null, teacher: m.staff?.full_name ?? '' };
+        subjectMap[sId] = { name: m.subjects?.name ?? sId, marksByCode: {}, teacher: m.staff?.full_name ?? '' };
       }
-      if (m.assessment_type === 'fa1') subjectMap[sId].fa1 = m.value;
-      if (m.assessment_type === 'fa2') subjectMap[sId].fa2 = m.value;
-      if (m.assessment_type === 'summative') subjectMap[sId].sum = m.value;
+      if (assessments.some((a: any) => a.code === m.assessment_type)) {
+        subjectMap[sId].marksByCode[m.assessment_type] = m.value;
+      }
     });
 
     // ── Fetch grading scale ────────────────────────────────────────────────────
@@ -95,13 +117,17 @@ Deno.serve(async (req) => {
       return scale?.grade_label ?? '—';
     };
 
-    const isIGCSE = /igcse|as level|a level|o level/i.test(student.streams?.grades?.school_sections?.name ?? '');
-
-    const computeTotal = (fa1: number | null, fa2: number | null, sum: number | null): number | null => {
-      if (isIGCSE) return sum;
-      const a = fa1 ?? 0, b = fa2 ?? 0, c = sum ?? 0;
-      if (fa1 === null && fa2 === null && sum === null) return null;
-      return Math.round((a * 0.2) + (b * 0.2) + (c * 0.6));
+    const computeTotal = (marksByCode: Record<string, number | null>): number | null => {
+      let total = 0;
+      let allPresent = true;
+      let hasAny = false;
+      for (const a of assessments) {
+        const val = marksByCode[a.code] ?? null;
+        if (val === null) { allPresent = false; }
+        else { total += val * (a.weight_percent / 100); hasAny = true; }
+      }
+      if (!hasAny || !allPresent) return null;
+      return Math.round(total);
     };
 
     // ── Fetch CREED ────────────────────────────────────────────────────────────
@@ -154,13 +180,17 @@ Deno.serve(async (req) => {
     const secondaryColor = school?.secondary_color ?? '#E8A020';
 
     // ── Build HTML ─────────────────────────────────────────────────────────────
+    // Dynamic columns: only include assessments flagged is_on_report
+    const reportAssessments = assessments.filter((a: any) => a.is_on_report);
+    const assessmentHeaders = reportAssessments.map((a: any) => `<th>${a.name}</th>`).join('');
     const subjectRows = Object.values(subjectMap)
       .map((s) => {
-        const total = computeTotal(s.fa1, s.fa2, s.sum);
+        const total = computeTotal(s.marksByCode);
         const grade = getGrade(total);
-        return isIGCSE
-          ? `<tr><td>${s.name}</td><td>—</td><td>—</td><td>${s.sum ?? '—'}</td><td>${total ?? '—'}</td><td><strong>${grade}</strong></td><td>${s.teacher}</td></tr>`
-          : `<tr><td>${s.name}</td><td>${s.fa1 ?? '—'}</td><td>${s.fa2 ?? '—'}</td><td>${s.sum ?? '—'}</td><td>${total ?? '—'}</td><td><strong>${grade}</strong></td><td>${s.teacher}</td></tr>`;
+        const markCells = reportAssessments
+          .map((a: any) => `<td>${s.marksByCode[a.code] ?? '—'}</td>`)
+          .join('');
+        return `<tr><td>${s.name}</td>${markCells}<td>${total ?? '—'}</td><td><strong>${grade}</strong></td><td>${s.teacher}</td></tr>`;
       })
       .join('');
 
@@ -230,7 +260,7 @@ Deno.serve(async (req) => {
   <div class="section">
     <div class="section-title">Academic Performance</div>
     <table>
-      <thead><tr><th>Subject</th><th>FA1</th><th>FA2</th><th>Summative</th><th>Total</th><th>Grade</th><th>Teacher</th></tr></thead>
+      <thead><tr><th>Subject</th>${assessmentHeaders}<th>Total</th><th>Grade</th><th>Teacher</th></tr></thead>
       <tbody>${subjectRows}</tbody>
       <tfoot><tr>
         <td colspan="4" style="text-align:right;padding-right:12px">Overall Average</td>

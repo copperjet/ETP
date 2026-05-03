@@ -48,7 +48,8 @@ export const ROLE_ACCESS: Record<string, AdminRole[]> = {
   audit:             ['super_admin', 'school_super_admin'],
   notification_log:  ['super_admin', 'school_super_admin'],
   backup:            ['super_admin', 'school_super_admin'],
-  marks_windows:     ['super_admin', 'school_super_admin', 'hod'],
+  marks_windows:       ['super_admin', 'school_super_admin', 'hod'],
+  assessment_config:   ['super_admin', 'school_super_admin'],
 
   // ── Admin (day-to-day operations) ───────────────────────────────────────
   students:          ['super_admin', 'school_super_admin', 'admin', 'front_desk'], // visible in Users hub for super; Students tab for admin

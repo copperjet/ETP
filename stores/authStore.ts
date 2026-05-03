@@ -30,6 +30,7 @@ interface AuthState {
   switchRole: (role: UserRole) => void;
   loadPersistedSchool: () => Promise<School | null>;
   signOut: () => Promise<void>;
+  clearSchool: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -47,9 +48,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setReady: (isReady) => set({ isReady }),
   switchRole: (role) => {
-    set((s) => ({
-      user: s.user ? { ...s.user, activeRole: role } : null,
-    }));
+    set((s) => {
+      if (!s.user) return {};
+      // Guard: only allow switching to a role the user actually possesses
+      if (!s.user.roles.includes(role)) {
+        console.warn('[switchRole] Attempted to switch to unpermitted role:', role);
+        return {};
+      }
+      return { user: { ...s.user, activeRole: role } };
+    });
     // Persist to Supabase so JWT claims reflect the new role on next refresh / restart
     supabase.auth.updateUser({ data: { active_role: role } }).catch((e) => {
       console.warn('[switchRole] Failed to persist active_role to Supabase', e);
@@ -68,8 +75,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ user: null, school: null });
-    // Clear persisted school for platform admin (no school to remember)
-    // School users get school re-fetched from persisted key on next boot
+    set({ user: null });
+    // Keep persisted school so next launch goes to login, not school-code
+  },
+  clearSchool: () => {
+    set({ school: null });
+    SecureStore.deleteItemAsync(PERSISTED_SCHOOL_KEY).catch(() => {});
   },
 }));

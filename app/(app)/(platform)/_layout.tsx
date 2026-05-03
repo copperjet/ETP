@@ -10,7 +10,9 @@ export default function PlatformLayout() {
   const { user } = useAuthStore();
   const showSidebar = useShouldShowSidebar();
 
-  if (!user || user.activeRole !== 'super_admin') {
+  // Only the platform-level super_admin (no school attached) can access this layout.
+  // school_super_admin has a schoolId and must never reach here.
+  if (!user || user.activeRole !== 'super_admin' || user.schoolId !== null) {
     return <Redirect href="/" />;
   }
 
