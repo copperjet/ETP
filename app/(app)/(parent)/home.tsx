@@ -15,7 +15,7 @@ import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typo
 import { Colors, resolveAttBg, resolveAttColor } from '../../../constants/Colors';
 import type { AttendanceStatus } from '../../../types/database';
 
-const TODAY_LABEL = format(new Date(), 'EEEE, d MMM');
+// TODAY_LABEL computed inside component to avoid stale dates
 
 interface ChildRow {
   id: string; full_name: string; photo_url: string | null;
@@ -67,6 +67,7 @@ function useChildDashboard(child: ChildRow | null, schoolId: string) {
 export default function ParentHome() {
   const { colors, scheme } = useTheme();
   const { user }           = useAuthStore();
+  const TODAY_LABEL = useMemo(() => format(new Date(), 'EEEE, d MMM'), []);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   const { data: children, isLoading: childrenLoading, isError: childrenError, refetch: refetchChildren } =

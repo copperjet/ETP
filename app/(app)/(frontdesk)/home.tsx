@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -11,8 +11,7 @@ import { ThemedText, Avatar, FAB, ErrorState, SectionHeader, StatCard, IconChip,
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 
-const TODAY       = format(new Date(), 'EEEE, d MMM');
-const TODAY_DATE  = format(new Date(), 'yyyy-MM-dd');
+// Dates computed inside component to avoid stale values after midnight
 
 const STATUS_META = [
   { key: 'new',         label: 'New',         color: Colors.semantic.info,    icon: 'add-circle-outline',       iconFilled: 'add-circle' },
@@ -21,15 +20,15 @@ const STATUS_META = [
   { key: 'closed',      label: 'Closed',      color: '#9CA3AF',                icon: 'close-circle-outline',     iconFilled: 'close-circle' },
 ] as const;
 
-function useFrontDeskDashboard(schoolId: string) {
+function useFrontDeskDashboard(schoolId: string, todayDate: string) {
   return useQuery({
-    queryKey: ['frontdesk-dashboard', schoolId],
+    queryKey: ['frontdesk-dashboard', schoolId, todayDate],
     enabled: !!schoolId,
     staleTime: 1000 * 30,
     queryFn: async () => {
       const [allRes, todayRes, visitorsRes, appsRes] = await Promise.all([
         (supabase as any).from('inquiries').select('id, status').eq('school_id', schoolId),
-        (supabase as any).from('inquiries').select('id, status').eq('school_id', schoolId).eq('date', TODAY_DATE),
+        (supabase as any).from('inquiries').select('id, status').eq('school_id', schoolId).eq('date', todayDate),
         (supabase as any).from('visitor_log').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).is('sign_out_at', null),
         (supabase as any).from('admissions_applications').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('status', 'submitted'),
       ]);
@@ -51,8 +50,10 @@ function useFrontDeskDashboard(schoolId: string) {
 
 export default function FrontDeskHome() {
   const { colors } = useTheme();
-  const { user }   = useAuthStore();
-  const { data, isLoading, isError, refetch, isFetching } = useFrontDeskDashboard(user?.schoolId ?? '');
+  const { user, school } = useAuthStore();
+  const TODAY = useMemo(() => format(new Date(), 'EEEE, d MMM'), []);
+  const TODAY_DATE = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const { data, isLoading, isError, refetch, isFetching } = useFrontDeskDashboard(user?.schoolId ?? '', TODAY_DATE);
 
   if (isError) {
     return (

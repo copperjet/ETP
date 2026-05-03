@@ -85,7 +85,8 @@ export default function AdminMore() {
         ...(can(role, 'school_settings')  ? [{ icon: 'color-palette-outline' as IoniconsName,    label: 'School Settings',     sublabel: 'Name, logo, brand colours',           onPress: () => router.push('/(app)/(admin)/school-settings' as any) }] : []),
         ...(can(role, 'calendar_events')  ? [{ icon: 'calendar-outline' as IoniconsName,         label: 'Calendar & Events',   sublabel: 'Semesters, holidays, breaks, events', onPress: () => router.push('/(app)/(admin)/calendar-events' as any) }] : []),
         ...(can(role, 'promotion')        ? [{ icon: 'arrow-up-circle-outline' as IoniconsName,  label: 'Promotion Wizard',    sublabel: 'Year-end promote / graduate',         onPress: () => router.push('/(app)/(admin)/promotion-wizard' as any) }] : []),
-        ...(can(role, 'marks_windows')    ? [{ icon: 'create-outline' as IoniconsName,           label: 'Marks Windows',       sublabel: 'Open / close entry windows',          onPress: () => router.push('/(app)/(admin)/marks-windows' as any) }] : []),
+        ...(can(role, 'marks_windows')      ? [{ icon: 'create-outline' as IoniconsName,           label: 'Marks Windows',         sublabel: 'Open / close entry windows',             onPress: () => router.push('/(app)/(admin)/marks-windows' as any) }] : []),
+        ...(can(role, 'assessment_config')  ? [{ icon: 'options-outline' as IoniconsName,           label: 'Assessment Config',     sublabel: 'Types, weights, grades, report inclusion', onPress: () => router.push('/(app)/(admin)/assessment-config' as any) }] : []),
         ...(can(role, 'audit')            ? [{ icon: 'shield-checkmark-outline' as IoniconsName, label: 'Audit Log',           sublabel: 'Filterable action history',           onPress: () => router.push('/(app)/(admin)/audit-log' as any) }] : []),
         ...(can(role, 'notification_log') ? [{ icon: 'notifications-outline' as IoniconsName,    label: 'Notification Log',    sublabel: 'All push & in-app notifications',     onPress: () => router.push('/(app)/(admin)/notification-log' as any) }] : []),
         ...(can(role, 'backup')           ? [{ icon: 'cloud-upload-outline' as IoniconsName,     label: 'Backup to Drive',     sublabel: 'Export data to Google Drive',         onPress: () => router.push('/(app)/(admin)/backup-settings' as any) }] : []),
@@ -144,11 +145,7 @@ export default function AdminMore() {
           icon: 'person-outline',
           label: 'My Profile',
           sublabel: user?.email ?? undefined,
-          onPress: () => Alert.alert(
-            user?.fullName ?? 'My Profile',
-            `Role: ${user?.activeRole ?? '—'}\nSchool: ${school?.name ?? '—'}\nEmail: ${user?.email ?? '—'}`,
-            [{ text: 'Close', style: 'cancel' }]
-          ),
+          onPress: () => router.push('/(app)/profile' as any),
         },
         ...((user?.roles ?? []).length > 1
           ? [{ icon: 'swap-horizontal-outline' as IoniconsName, label: 'Switch Role', sublabel: `Active: ${user?.activeRole ?? ''}`, onPress: () => router.push('/(app)/switch-role' as any) }]

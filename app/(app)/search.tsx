@@ -7,7 +7,6 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
   TextInput,
 } from 'react-native';
@@ -15,7 +14,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { useAuthStore } from '../../stores/authStore';
-import { ThemedText, Avatar, Skeleton } from '../../components/ui';
+import { ThemedText, Avatar, Skeleton, FastList } from '../../components/ui';
 import { useGlobalSearch, type GlobalSearchResult } from '../../hooks/useStudents';
 import { Spacing, Radius } from '../../constants/Typography';
 import { Colors } from '../../constants/Colors';
@@ -120,7 +119,7 @@ export default function SearchScreen() {
       )}
 
       {showResults && (
-        <FlatList
+        <FastList
           data={results}
           keyExtractor={(r) => `${r.type}-${r.id}`}
           contentContainerStyle={styles.list}

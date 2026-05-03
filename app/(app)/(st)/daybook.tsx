@@ -31,7 +31,7 @@ import {
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { haptics } from '../../../lib/haptics';
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
+const getToday = () => format(new Date(), 'yyyy-MM-dd');
 
 function useSTStudents(staffId: string | null, schoolId: string) {
   return useQuery({
@@ -79,7 +79,7 @@ export default function STDayBookScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editEntry, setEditEntry] = useState<DayBookEntry | null>(null);
 
-  const { data: entries = [], isLoading, isError, refetch } = useSTDayBook(staffId, schoolId, TODAY);
+  const { data: entries = [], isLoading, isError, refetch } = useSTDayBook(staffId, schoolId, getToday());
   const { data: students = [] } = useSTStudents(staffId, schoolId);
 
   const createMutation = useCreateDayBookEntry(schoolId);

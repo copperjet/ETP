@@ -6,7 +6,6 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
   Alert,
 } from 'react-native';
@@ -16,7 +15,7 @@ import { format } from 'date-fns';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import {
-  ThemedText, SearchBar, Skeleton, EmptyState, ErrorState, ScreenHeader,
+  ThemedText, SearchBar, Skeleton, EmptyState, ErrorState, ScreenHeader, FastList,
 } from '../../../components/ui';
 import { DayBookEntryCard } from '../../../components/modules/DayBookEntryCard';
 import { useAdminDayBook, useArchiveDayBookEntry } from '../../../hooks/useDayBook';
@@ -121,7 +120,7 @@ export default function AdminDayBookScreen() {
           icon="book-outline"
         />
       ) : (
-        <FlatList
+        <FastList
           data={entries}
           keyExtractor={(e) => e.id}
           contentContainerStyle={styles.list}

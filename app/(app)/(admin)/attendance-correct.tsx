@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -18,7 +17,7 @@ import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Avatar, BottomSheet, Skeleton, EmptyState, ErrorState, ScreenHeader,
+  ThemedText, Avatar, BottomSheet, Skeleton, EmptyState, ErrorState, ScreenHeader, FastList,
 } from '../../../components/ui';
 import { useStreamRegister, type StreamRegisterRecord } from '../../../hooks/useAttendance';
 import { Spacing, Radius } from '../../../constants/Typography';
@@ -203,7 +202,7 @@ export default function AttendanceCorrectScreen() {
           description="There are no active students in this stream."
         />
       ) : (
-        <FlatList
+        <FastList
           data={records}
           keyExtractor={(item) => item.studentId}
           contentContainerStyle={styles.list}

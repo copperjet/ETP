@@ -14,7 +14,7 @@ import {
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 
-const TODAY = format(new Date(), 'EEEE, d MMM');
+// Avoid stale date after midnight — computed inside component via useMemo
 
 function useSTDashboard(staffId: string | null, schoolId: string) {
   return useQuery({
@@ -22,6 +22,15 @@ function useSTDashboard(staffId: string | null, schoolId: string) {
     enabled: !!staffId && !!schoolId,
     staleTime: 1000 * 60 * 3,
     queryFn: async () => {
+      // Try single RPC first (N+1 → 1 query)
+      const { data: rpc, error: rpcErr } = await (supabase as any)
+        .rpc('get_st_dashboard', { p_staff_id: staffId, p_school_id: schoolId });
+
+      if (!rpcErr && Array.isArray(rpc)) {
+        return rpc as any[];
+      }
+
+      // Fallback: multi-query if RPC not deployed yet
       const { data: assignments, error } = await (supabase as any)
         .from('subject_teacher_assignments')
         .select('id, subject_id, stream_id, semester_id, subjects (name, department), streams (name, grades (name, school_sections (section_type))), semesters (name, is_active)')
@@ -49,9 +58,10 @@ function useSTDashboard(staffId: string | null, schoolId: string) {
 
 export default function STHome() {
   const { colors } = useTheme();
-  const { user }   = useAuthStore();
+  const { user, school } = useAuthStore();
   const { data, isLoading, isError, refetch, isFetching } = useSTDashboard(user?.staffId ?? null, user?.schoolId ?? '');
 
+  const TODAY = useMemo(() => format(new Date(), 'EEEE, d MMM'), []);
   const greeting = useMemo(() => {
     const h = new Date().getHours();
     if (h < 12) return 'Good morning'; if (h < 17) return 'Good afternoon'; return 'Good evening';

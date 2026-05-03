@@ -46,10 +46,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   setLoading: (isLoading) => set({ isLoading }),
   setReady: (isReady) => set({ isReady }),
-  switchRole: (role) =>
+  switchRole: (role) => {
     set((s) => ({
       user: s.user ? { ...s.user, activeRole: role } : null,
-    })),
+    }));
+    // Persist to Supabase so JWT claims reflect the new role on next refresh / restart
+    supabase.auth.updateUser({ data: { active_role: role } }).catch((e) => {
+      console.warn('[switchRole] Failed to persist active_role to Supabase', e);
+    });
+  },
   loadPersistedSchool: async () => {
     try {
       const raw = await SecureStore.getItemAsync(PERSISTED_SCHOOL_KEY);

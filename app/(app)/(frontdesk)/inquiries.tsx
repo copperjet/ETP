@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, SafeAreaView, FlatList, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { View, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { supabase } from '../../../lib/supabase';
 import {
   ThemedText, SearchBar, Badge, BottomSheet, FAB,
   ListItemSkeleton, EmptyState, ErrorState, TabBar,
-  ListItem, Chip, Button, FormField, IconChip,
+  ListItem, Chip, Button, FormField, IconChip, FastList,
 } from '../../../components/ui';
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
@@ -131,7 +131,7 @@ export default function InquiriesScreen() {
           description={!search && activeTab === 'new' ? 'Tap + to log a new inquiry.' : ''}
         />
       ) : (
-        <FlatList
+        <FastList
           data={filtered}
           keyExtractor={i => i.id}
           contentContainerStyle={styles.list}

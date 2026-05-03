@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native'
 import { router } from 'expo-router';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
-import { ThemedText, Button, Card, FormField } from '../../../components/ui';
+import { ThemedText, Button, Card, FormField, DatePickerField } from '../../../components/ui';
 import { Spacing } from '../../../constants/Typography';
 import { useCreateLeaveRequest } from '../../../hooks/useLeave';
 
@@ -74,18 +74,20 @@ export default function HRLeaveRequest() {
             />
           ))}
 
-          <FormField
-            label="Start Date (YYYY-MM-DD)"
+          <DatePickerField
+            label="Start Date"
             value={startDate}
-            onChangeText={setStartDate}
-            placeholder="2025-06-01"
+            onChange={setStartDate}
+            placeholder="Select start date"
+            minimumDate={new Date().toISOString().slice(0, 10)}
           />
 
-          <FormField
-            label="End Date (YYYY-MM-DD)"
+          <DatePickerField
+            label="End Date"
             value={endDate}
-            onChangeText={setEndDate}
-            placeholder="2025-06-05"
+            onChange={setEndDate}
+            placeholder="Select end date"
+            minimumDate={startDate || new Date().toISOString().slice(0, 10)}
           />
 
           <FormField

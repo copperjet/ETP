@@ -43,7 +43,7 @@ const CATEGORIES = [
 
 type CategoryValue = typeof CATEGORIES[number]['value'];
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
+const getToday = () => format(new Date(), 'yyyy-MM-dd');
 
 function useDayBook(staffId: string | null, schoolId: string) {
   return useQuery({
@@ -67,7 +67,7 @@ function useDayBook(staffId: string | null, schoolId: string) {
           .eq('status', 'active').order('full_name'),
         (supabase as any).from('day_book_entries').select('id, student_id, category, description, send_to_parent, edit_window_closes_at, created_at, date')
           .eq('school_id', schoolId).eq('created_by', staffId!)
-          .eq('date', TODAY).eq('archived', false).order('created_at', { ascending: false }),
+          .eq('date', getToday()).eq('archived', false).order('created_at', { ascending: false }),
       ]);
 
       return {
@@ -120,7 +120,7 @@ export default function DayBookScreen() {
       const { error } = await (supabase as any).from('day_book_entries').insert({
         school_id: user?.schoolId,
         student_id: selectedStudent.id,
-        date: TODAY,
+        date: getToday(),
         category: selectedCategory,
         description: description.trim(),
         created_by: user?.staffId,

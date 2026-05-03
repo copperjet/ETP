@@ -53,6 +53,7 @@ export default function HRTMore() {
       items: [
         { icon: 'time-outline',          label: 'Attendance History',  sublabel: 'Past registers & stats',    onPress: () => router.push('/(app)/(hrt)/attendance-history' as any) },
         { icon: 'document-text-outline', label: 'Report Cards',        sublabel: 'View & release reports',   onPress: () => router.push('/(app)/(hrt)/reports' as any) },
+        { icon: 'checkmark-done-outline', label: 'Reports Approval',  sublabel: 'Approve & add class teacher comments', onPress: () => router.push('/(app)/(hrt)/reports-approve' as any) },
         { icon: 'book-outline',          label: 'Day Book',            sublabel: 'Student daily notes',      onPress: () => router.push('/(app)/(hrt)/daybook' as any) },
         { icon: 'person-add-outline',    label: 'CREED Ratings',       sublabel: 'Character assessments',    onPress: () => router.push('/(app)/(hrt)/creed' as any) },
         { icon: 'chatbubble-ellipses-outline', label: 'Parent Messages', sublabel: 'Message parents of your students', onPress: () => router.push('/(app)/(hrt)/messages' as any) },
@@ -86,11 +87,7 @@ export default function HRTMore() {
           icon: 'person-outline',
           label: 'My Profile',
           sublabel: user?.email ?? undefined,
-          onPress: () => Alert.alert(
-            user?.fullName ?? 'My Profile',
-            `Role: ${user?.activeRole ?? '—'}\nSchool: ${school?.name ?? '—'}\nEmail: ${user?.email ?? '—'}`,
-            [{ text: 'Close', style: 'cancel' }]
-          ),
+          onPress: () => router.push('/(app)/profile' as any),
         },
         { icon: 'finger-print-outline', label: 'Biometric Login', sublabel: 'Face ID / Fingerprint', onPress: () => {} },
         ...((user?.roles ?? []).length > 1

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, SafeAreaView, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -98,7 +98,7 @@ export default function AdminHome() {
   const canSchoolStructure = useCanAccess('school_structure');
   const canCalendar = useCanAccess('calendar_events');
 
-  const TODAY = format(new Date(), 'EEEE, d MMM');
+  const TODAY = useMemo(() => format(new Date(), 'EEEE, d MMM'), []);
   const attPct = data?.totalAttToday
     ? Math.round((data.presentToday / data.totalAttToday) * 100)
     : null;

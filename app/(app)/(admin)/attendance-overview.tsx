@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,12 +20,13 @@ import { Spacing, Radius } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
-const TODAY_DISPLAY = format(new Date(), 'EEE dd/MM/yy');
+// Computed inside component to avoid stale dates
 
 export default function AttendanceOverviewScreen() {
   const { colors } = useTheme();
   const { user } = useAuthStore();
+  const TODAY = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const TODAY_DISPLAY = useMemo(() => format(new Date(), 'EEE dd/MM/yy'), []);
   const [search, setSearch] = useState('');
 
   const { data, isLoading, isError, refetch } = useAttendanceOverview(

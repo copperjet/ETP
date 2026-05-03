@@ -20,7 +20,7 @@ import { AttendanceSummaryCard } from '../../../components/modules/AttendanceSum
 import { Spacing, Radius, Shadow } from '../../../constants/Typography';
 import { Colors, resolveAttColor } from '../../../constants/Colors';
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
+const getToday = () => format(new Date(), 'yyyy-MM-dd');
 const LOOKBACK_DAYS = 30;
 
 interface DayRecord {
@@ -61,7 +61,7 @@ function useAttendanceHistory(staffId: string | null, schoolId: string) {
         .eq('school_id', schoolId)
         .eq('stream_id', stream_id)
         .gte('date', fromDate)
-        .lte('date', TODAY)
+        .lte('date', getToday())
         .order('date', { ascending: false });
 
       // Group by date
@@ -151,7 +151,7 @@ function HistoryDayRow({ day, colors }: { day: DayRecord; colors: any }) {
   const dateObj = parseISO(day.date);
   const dayName = format(dateObj, 'EEE');
   const dateStr = format(dateObj, 'd MMM');
-  const isToday = day.date === TODAY;
+  const isToday = day.date === getToday();
 
   const attendancePct = day.total > 0
     ? Math.round(((day.present + day.late + day.ap) / day.total) * 100)

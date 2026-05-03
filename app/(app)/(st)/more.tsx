@@ -80,7 +80,7 @@ export default function STMore() {
           icon: 'person-outline',
           label: 'My Profile',
           sublabel: user?.email ?? undefined,
-          onPress: () => Alert.alert(user?.fullName ?? 'My Profile', `Email: ${user?.email ?? '—'}`, [{ text: 'Close', style: 'cancel' }]),
+          onPress: () => router.push('/(app)/profile' as any),
         },
         ...((user?.roles ?? []).length > 1
           ? [{ icon: 'swap-horizontal-outline' as IoniconsName, label: 'Switch Role', sublabel: `Active: ${user?.activeRole ?? ''}`, onPress: () => router.push('/(app)/switch-role' as any) }]

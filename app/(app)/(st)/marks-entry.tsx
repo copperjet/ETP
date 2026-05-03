@@ -10,7 +10,6 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -26,7 +25,7 @@ import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Avatar, Skeleton, EmptyState, ErrorState, ScreenHeader,
+  ThemedText, Avatar, Skeleton, EmptyState, ErrorState, ScreenHeader, FastList,
 } from '../../../components/ui';
 import { MarksWindowBanner } from '../../../components/modules/MarksWindowBanner';
 import { ClassAverageBanner } from '../../../components/modules/ClassAverageBanner';
@@ -335,7 +334,7 @@ export default function MarksEntryScreen() {
         ) : students.length === 0 ? (
           <EmptyState title="No students" description="No active students in this class." />
         ) : (
-          <FlatList
+          <FastList
             data={students}
             keyExtractor={(s) => s.id}
             contentContainerStyle={styles.list}

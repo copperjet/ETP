@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, SafeAreaView, FlatList, RefreshControl } from 'react-native';
+import { View, StyleSheet, SafeAreaView, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
-import { SearchBar, ListItem, Skeleton, EmptyState, ErrorState } from '../../../components/ui';
+import { SearchBar, ListItem, Skeleton, EmptyState, ErrorState, FastList } from '../../../components/ui';
 import { Spacing, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 
 function useStudents(schoolId: string) {
@@ -68,7 +68,7 @@ export default function HRTStudentsScreen() {
           description={search ? `No students match "${search}"` : 'Students in your class will appear here.'}
         />
       ) : (
-        <FlatList
+        <FastList
           data={filtered}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}

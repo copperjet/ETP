@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -14,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
-import { ThemedText, Card, Skeleton, EmptyState, ErrorState, ProgressBar } from '../../../components/ui';
+import { ThemedText, Card, Skeleton, EmptyState, ErrorState, ProgressBar, FastList } from '../../../components/ui';
 import { Spacing, Radius, Typography } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
@@ -311,7 +310,7 @@ export default function MarksScreen() {
       {/* Subject/stream tabs */}
       {!assignsLoading && (assignments ?? []).length > 1 && (
         <View style={[styles.subjectTabs, { borderBottomColor: colors.border }]}>
-          <FlatList
+          <FastList
             horizontal
             data={assignments ?? []}
             keyExtractor={(_, i) => String(i)}
@@ -394,7 +393,7 @@ export default function MarksScreen() {
             description="This class has no active students."
           />
         ) : (
-          <FlatList
+          <FastList
             data={data?.students ?? []}
             keyExtractor={item => (item as any).id}
             contentContainerStyle={styles.list}

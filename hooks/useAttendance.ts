@@ -175,6 +175,15 @@ export function useAttendanceOverview(schoolId: string, date: string) {
     enabled: !!schoolId,
     staleTime: 1000 * 30,
     queryFn: async () => {
+      // Try single RPC first (eliminates 2000-student limit + reduces data transfer)
+      const { data: rpc, error: rpcErr } = await (supabase as any)
+        .rpc('get_attendance_overview', { p_school_id: schoolId, p_date: date });
+
+      if (!rpcErr && Array.isArray(rpc)) {
+        return rpc as StreamOverview[];
+      }
+
+      // Fallback: multi-query if RPC not deployed yet
       const [streamsRes, studentsRes, attendanceRes] = await Promise.all([
         supabase
           .from('streams')
@@ -189,7 +198,7 @@ export function useAttendanceOverview(schoolId: string, date: string) {
           .select('id, stream_id')
           .eq('school_id', schoolId)
           .eq('status', 'active')
-          .limit(2000),
+          .limit(5000),
         supabase
           .from('attendance_records')
           .select('stream_id, status, register_locked, staff:submitted_by ( full_name )')

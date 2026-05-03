@@ -14,16 +14,21 @@ import {
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors, resolveAttBg, resolveAttColor } from '../../../constants/Colors';
 
-const TODAY      = format(new Date(), 'yyyy-MM-dd');
-const TODAY_LABEL = format(new Date(), 'EEEE dd/MM');
+// Computed inside component to avoid stale dates after midnight
+function useToday() {
+  return useMemo(() => ({
+    iso: format(new Date(), 'yyyy-MM-dd'),
+    label: format(new Date(), 'EEEE dd/MM'),
+  }), []);
+}
 
 /**
  * Single RPC `get_hrt_dashboard` replaces the old 5-query waterfall.
  * Server returns one JSONB payload — no more sequential round-trips.
  */
-function useHRTDashboard(staffId: string | null, schoolId: string) {
+function useHRTDashboard(staffId: string | null, schoolId: string, todayISO: string) {
   return useQuery({
-    queryKey: ['hrt-dashboard', staffId, schoolId, TODAY],
+    queryKey: ['hrt-dashboard', staffId, schoolId, todayISO],
     enabled: !!staffId && !!schoolId,
     staleTime: 1000 * 60 * 2,
     queryFn: async () => {
@@ -68,9 +73,10 @@ function useHRTDashboard(staffId: string | null, schoolId: string) {
 
 export default function HRTHome() {
   const { colors, scheme } = useTheme();
-  const { user } = useAuthStore();
+  const { user, school } = useAuthStore();
+  const today = useToday();
   const { data, isLoading, isError, refetch, isRefetching } =
-    useHRTDashboard(user?.staffId ?? null, user?.schoolId ?? '');
+    useHRTDashboard(user?.staffId ?? null, user?.schoolId ?? '', today.iso);
 
   const a        = data?.assignment as any;
   const streamName  = a?.streams?.name ?? '—';
@@ -119,7 +125,7 @@ export default function HRTHome() {
         {/* ── Top bar ── */}
         <View style={styles.topBar}>
           <View style={{ flex: 1, gap: 2 }}>
-            <ThemedText variant="caption" color="muted">{TODAY_LABEL}</ThemedText>
+            <ThemedText variant="caption" color="muted">{today.label}</ThemedText>
             <ThemedText variant="h2">
               {greeting}, {user?.fullName?.split(' ')[0] ?? 'Teacher'} 👋
             </ThemedText>

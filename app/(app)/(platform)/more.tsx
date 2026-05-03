@@ -81,11 +81,7 @@ export default function PlatformMore() {
           icon: 'person-outline',
           label: 'My Profile',
           sublabel: user?.email ?? undefined,
-          onPress: () => Alert.alert(
-            user?.fullName ?? 'Platform Admin',
-            `Role: Platform Administrator\nEmail: ${user?.email ?? '—'}`,
-            [{ text: 'Close', style: 'cancel' }]
-          ),
+          onPress: () => router.push('/(app)/profile' as any),
         },
         {
           icon: 'log-out-outline',

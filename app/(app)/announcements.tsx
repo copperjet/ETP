@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import {
-  View, StyleSheet, SafeAreaView, FlatList, TouchableOpacity,
+  View, StyleSheet, SafeAreaView, TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -12,7 +12,7 @@ import { format, parseISO } from 'date-fns';
 import { useTheme } from '../../lib/theme';
 import { useAuthStore } from '../../stores/authStore';
 import {
-  ThemedText, Skeleton, EmptyState, ErrorState, ScreenHeader,
+  ThemedText, Skeleton, EmptyState, ErrorState, ScreenHeader, FastList,
 } from '../../components/ui';
 import { Spacing, Radius } from '../../constants/Typography';
 import { Colors } from '../../constants/Colors';
@@ -75,7 +75,7 @@ export default function AnnouncementsFeed() {
           icon="megaphone-outline"
         />
       ) : (
-        <FlatList
+        <FastList
           data={items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}

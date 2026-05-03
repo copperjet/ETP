@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import {
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 
-const TODAY = format(new Date(), 'EEEE, d MMM');
+// TODAY computed inside component to avoid stale dates
 
 function useHRDashboard(schoolId: string) {
   return useQuery({
@@ -39,6 +39,7 @@ function useHRDashboard(schoolId: string) {
 export default function HRHome() {
   const { colors } = useTheme();
   const { user, school } = useAuthStore();
+  const TODAY = useMemo(() => format(new Date(), 'EEEE, d MMM'), []);
   const schoolId = user?.schoolId ?? '';
 
   const { data, isLoading, isError, refetch, isRefetching } = useHRDashboard(schoolId);

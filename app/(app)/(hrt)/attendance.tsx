@@ -33,8 +33,9 @@ import { Colors, resolveAttBg, resolveAttColor } from '../../../constants/Colors
 import { haptics } from '../../../lib/haptics';
 import type { AttendanceStatus } from '../../../types/database';
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
-const TODAY_DISPLAY = format(new Date(), 'EEE dd/MM/yy');
+// Functions instead of constants — always returns current date, not stale
+const getToday = () => format(new Date(), 'yyyy-MM-dd');
+const getTodayDisplay = () => format(new Date(), 'EEE dd/MM/yy');
 
 const STATUSES: { value: AttendanceStatus; label: string; icon: string }[] = [
   { value: 'present', label: 'Present',              icon: 'checkmark-circle' },
@@ -69,7 +70,7 @@ interface RegisterData {
 
 function useAttendanceRegister(staffId: string | null, schoolId: string) {
   return useQuery<RegisterData>({
-    queryKey: ['attendance-register', staffId, schoolId, TODAY],
+    queryKey: ['attendance-register', staffId, schoolId, getToday()],
     enabled: !!staffId && !!schoolId,
     staleTime: 0,
     queryFn: async () => {
@@ -105,7 +106,7 @@ function useAttendanceRegister(staffId: string | null, schoolId: string) {
           .select('id, student_id, status, register_locked, submitted_by, submitted_at, staff:submitted_by ( full_name )')
           .eq('school_id', schoolId)
           .eq('stream_id', stream_id)
-          .eq('date', TODAY),
+          .eq('date', getToday()),
         supabase
           .from('excused_absence_requests')
           .select('attendance_record_id, reason_text'),
@@ -159,7 +160,7 @@ function useAttendanceRegister(staffId: string | null, schoolId: string) {
 
 function useExamPeriod(schoolId: string) {
   return useQuery({
-    queryKey: ['exam-period', schoolId, TODAY],
+    queryKey: ['exam-period', schoolId, getToday()],
     enabled: !!schoolId,
     staleTime: 1000 * 60 * 30,
     queryFn: async () => {
@@ -168,8 +169,8 @@ function useExamPeriod(schoolId: string) {
         .select('id, title, start_date, end_date')
         .eq('school_id', schoolId)
         .eq('event_type', 'exam_period')
-        .lte('start_date', TODAY)
-        .gte('end_date', TODAY)
+        .lte('start_date', getToday())
+        .gte('end_date', getToday())
         .limit(1)
         .maybeSingle();
       return data as { id: string; title: string } | null;
@@ -316,7 +317,7 @@ export default function AttendanceScreen() {
       .select('submitted_by, register_locked')
       .eq('school_id', user?.schoolId ?? '')
       .eq('stream_id', data.streamId)
-      .eq('date', TODAY)
+      .eq('date', getToday())
       .limit(1)
       .maybeSingle();
 
@@ -338,7 +339,7 @@ export default function AttendanceScreen() {
       student_id: studentId,
       stream_id: data.streamId,
       semester_id: data.semesterId,
-      date: TODAY,
+      date: getToday(),
       status,
       submitted_by: user?.staffId,
       submitted_at: new Date().toISOString(),
@@ -391,7 +392,7 @@ export default function AttendanceScreen() {
           school_id: user.schoolId,
           student_id: sid,
           stream_id: data.streamId!,
-          date: TODAY,
+          date: getToday(),
           marked_by_name: markedByName,
         });
       });
@@ -404,7 +405,7 @@ export default function AttendanceScreen() {
       actor_id: user?.staffId,
       data: {
         stream_id: data.streamId,
-        date: TODAY,
+        date: getToday(),
         record_count: records.length,
         present: records.filter((r) => r.status === 'present').length,
         absent: records.filter((r) => r.status === 'absent').length,
@@ -449,7 +450,7 @@ export default function AttendanceScreen() {
         correction_note: correctionNote.trim(),
       })
       .eq('student_id', correctionStudent.id)
-      .eq('date', TODAY)
+      .eq('date', getToday())
       .eq('school_id', user?.schoolId ?? '');
 
     if (error) {
@@ -469,7 +470,7 @@ export default function AttendanceScreen() {
         old_status: correctionStudent.attendance_status,
         new_status: correctionNewStatus,
         note: correctionNote.trim(),
-        date: TODAY,
+        date: getToday(),
       },
     } as any).then(() => {});
 
@@ -514,7 +515,7 @@ export default function AttendanceScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScreenHeader
         title={data?.streamName ? `${data.streamName} Register` : 'Attendance Register'}
-        subtitle={TODAY_DISPLAY}
+        subtitle={getTodayDisplay()}
         showBack
         right={
           <TouchableOpacity
@@ -950,7 +951,7 @@ function SubmittedView({
         <Animated.View style={[{ alignItems: 'center', width: '100%' }, contentStyle]}>
           <ThemedText variant="h2" style={styles.successTitle}>Register Submitted</ThemedText>
           <ThemedText variant="body" color="muted" style={styles.successSub}>
-            {streamName ? `${streamName} — ` : ''}{TODAY_DISPLAY}
+            {streamName ? `${streamName} — ` : ''}{getTodayDisplay()}
           </ThemedText>
           <View style={[styles.statsGrid, { borderColor: colors.border }]}>
             {[

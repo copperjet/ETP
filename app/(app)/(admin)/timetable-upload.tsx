@@ -17,7 +17,7 @@ import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
 import {
-  ThemedText, Skeleton, EmptyState, ErrorState, ScreenHeader,
+  ThemedText, Skeleton, EmptyState, ErrorState, ScreenHeader, DatePickerField,
 } from '../../../components/ui';
 import { Spacing, Radius } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
@@ -313,14 +313,14 @@ export default function TimetableUploadScreen() {
           )}
 
           {/* Effective from */}
-          <ThemedText variant="label" color="muted" style={[styles.fieldLabel, { marginTop: Spacing.md }]}>EFFECTIVE FROM</ThemedText>
-          <TextInput
-            value={effectiveFrom}
-            onChangeText={setEffectiveFrom}
-            placeholder="yyyy-mm-dd"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, color: colors.textPrimary }]}
-          />
+          <View style={{ marginTop: Spacing.md }}>
+            <DatePickerField
+              label="EFFECTIVE FROM"
+              value={effectiveFrom}
+              onChange={setEffectiveFrom}
+              placeholder="Select date"
+            />
+          </View>
 
           {/* Upload button */}
           <TouchableOpacity

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, SafeAreaView, FlatList, Pressable, RefreshControl } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { supabase } from '../../../lib/supabase';
 import {
   ThemedText, Avatar, FAB, BottomSheet, Button,
   ListItemSkeleton, EmptyState, ErrorState, SearchBar,
-  StatCard, SectionHeader, Badge,
+  StatCard, SectionHeader, Badge, FastList,
 } from '../../../components/ui';
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
@@ -170,7 +170,7 @@ export default function FinanceHome() {
           description={search ? 'Try a different name or student number.' : 'No finance records for this semester.'}
         />
       ) : (
-        <FlatList
+        <FastList
           data={filtered}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}

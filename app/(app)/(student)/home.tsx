@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import {
 import { Spacing, Radius, Shadow, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 
-const TODAY = format(new Date(), 'EEEE dd/MM');
+// TODAY computed inside component to avoid stale dates after midnight
 
 function useStudentDashboard(studentId: string | null, schoolId: string) {
   return useQuery({
@@ -22,7 +22,24 @@ function useStudentDashboard(studentId: string | null, schoolId: string) {
     enabled: !!studentId && !!schoolId,
     staleTime: 1000 * 60 * 3,
     queryFn: async () => {
-      // Get active semester
+      // Try single RPC first (7 queries → 1)
+      const { data: rpc, error: rpcErr } = await (supabase as any)
+        .rpc('get_student_dashboard', { p_student_id: studentId, p_school_id: schoolId });
+
+      if (!rpcErr && rpc && !rpc.error) {
+        return {
+          profile: rpc.profile,
+          semester: rpc.semester,
+          attendance: rpc.attendance ?? { records: [], rate: 0, count: 0 },
+          marks: rpc.marks ?? [],
+          latestReport: rpc.latestReport ?? null,
+          dayBook: rpc.dayBook ?? [],
+          invoices: rpc.invoices ?? [],
+          totalOutstanding: rpc.totalOutstanding ?? 0,
+        };
+      }
+
+      // Fallback: multi-query if RPC not deployed yet
       const { data: sem } = await (supabase as any)
         .from('semesters')
         .select('id, name, start_date, end_date')
@@ -63,7 +80,8 @@ function useStudentDashboard(studentId: string | null, schoolId: string) {
 
 export default function StudentHome() {
   const { colors, scheme } = useTheme();
-  const { user } = useAuthStore();
+  const { user, school } = useAuthStore();
+  const TODAY = useMemo(() => format(new Date(), 'EEEE dd/MM'), []);
 
   const studentId = user?.studentId ?? null;
   const schoolId = user?.schoolId ?? '';
@@ -92,7 +110,7 @@ export default function StudentHome() {
         <View style={styles.topBar}>
           <View>
             <ThemedText variant="caption" color="muted">{TODAY}</ThemedText>
-            <ThemedText variant="h2">My School</ThemedText>
+            <ThemedText variant="h2">{school?.name ?? 'My School'}</ThemedText>
           </View>
           <Pressable onPress={() => router.push('/(app)/notifications' as any)} style={[styles.iconBtn, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
@@ -230,7 +248,7 @@ export default function StudentHome() {
         </View>
 
         {/* Fees */}
-        <SectionHeader title="Fees" />
+        <SectionHeader title="Fees" action="See All" onAction={() => router.push('/(app)/(student)/fees' as any)} />
         {isLoading ? (
           <Card style={{ marginHorizontal: Spacing.screen, padding: Spacing.md }}>
             <View style={{ gap: 8 }}>

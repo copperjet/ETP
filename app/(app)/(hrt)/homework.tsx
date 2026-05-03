@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -19,7 +18,7 @@ import { useTheme } from '../../../lib/theme';
 import { useAuthStore } from '../../../stores/authStore';
 import { supabase } from '../../../lib/supabase';
 import { useTeacherHomework, useHomeworkSubmissions, useCreateHomework, useGradeSubmission, useDeleteHomework } from '../../../hooks/useHomework';
-import { ThemedText, Card, Skeleton, EmptyState, Button, CardSkeleton } from '../../../components/ui';
+import { ThemedText, Card, Skeleton, EmptyState, Button, CardSkeleton, DatePickerField, FastList } from '../../../components/ui';
 import { Spacing, Radius, Typography, TAB_BAR_HEIGHT } from '../../../constants/Typography';
 import { Colors } from '../../../constants/Colors';
 import { haptics } from '../../../lib/haptics';
@@ -245,7 +244,7 @@ export default function HomeworkScreen() {
       </ScrollView>
 
       {/* Homework List */}
-      <FlatList
+      <FastList
         data={filteredHomework}
         contentContainerStyle={styles.list}
         keyExtractor={(item) => item.id}
@@ -368,12 +367,12 @@ function CreateHomeworkModal({
             onChangeText={setDescription}
             multiline
           />
-          <TextInput
-            style={[styles.input, { color: colors.textPrimary, borderColor: colors.border }]}
-            placeholder="Due Date (YYYY-MM-DD)"
-            placeholderTextColor={colors.textSecondary}
+          <DatePickerField
+            label="Due Date"
             value={dueDate}
-            onChangeText={setDueDate}
+            onChange={setDueDate}
+            placeholder="Select due date"
+            minimumDate={new Date().toISOString().slice(0, 10)}
           />
           <TextInput
             style={[styles.input, { color: colors.textPrimary, borderColor: colors.border }]}
@@ -392,10 +391,7 @@ function CreateHomeworkModal({
             loading={loading}
             onPress={() => {
               if (!title.trim()) { Alert.alert('Validation', 'Title is required'); return; }
-              if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || isNaN(Date.parse(dueDate))) {
-                Alert.alert('Validation', 'Due date must be YYYY-MM-DD format');
-                return;
-              }
+              if (!dueDate) { Alert.alert('Validation', 'Due date is required'); return; }
               onSubmit({ title, description, dueDate, maxScore });
             }}
           />
@@ -447,7 +443,7 @@ function SubmissionsModal({
         {loading ? (
           <CardSkeleton lines={3} />
         ) : (
-          <FlatList
+          <FastList
             data={submissions}
             keyExtractor={(s) => s.id}
             contentContainerStyle={styles.submissionList}
